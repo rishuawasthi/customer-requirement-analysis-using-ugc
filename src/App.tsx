@@ -144,8 +144,10 @@ export default function App() {
               onUpdateRecord={handleUpdateRecord} onBatchClassifyAll={handleBatchClassifyAll}
               sourceName={sourceName} onSelectPresetDataset={handleQuickSwitchDataset}
               onCustomFileLoaded={handleDatasetLoaded}/>}
-            {(activeTab === 'research' || activeTab === 'annotation') && <ResearchSection
-              records={records} onUpdateRecord={handleUpdateRecord} sourceName={sourceName}/>}
+            {activeTab === 'annotation' && <ResearchSection
+              records={records} onUpdateRecord={handleUpdateRecord} sourceName={sourceName} initialTab="annotation"/>}
+            {activeTab === 'research' && <ResearchSection
+              records={records} onUpdateRecord={handleUpdateRecord} sourceName={sourceName} initialTab="benchmark"/>}
             {activeTab === 'documentation' && <DocumentationSection/>}
           </>
         )}
