@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from server.ml.split_manager import (
     assign_review_to_split,
@@ -160,6 +161,85 @@ class TestMlPipeline(unittest.TestCase):
         self.assertGreater(infer_res['confidence'], 0.0)
         self.assertIn('decision_scores', infer_res)
         self.assertGreater(infer_res['latencyMs'], 0.0)
+
+
+    def test_dual_annotated_count_requires_both_human_coders(self):
+        records = [
+            {'id': 'both', 'text': 'A valid sentence.', 'humanAnnotations': {
+                'annotatorA': 'PAIN_POINT', 'annotatorB': 'PAIN_POINT', 'adjudicated': 'PAIN_POINT'
+            }},
+            {'id': 'only-a', 'text': 'Another sentence.', 'humanAnnotations': {
+                'annotatorA': 'PAIN_POINT', 'adjudicated': 'PAIN_POINT'
+            }},
+            {'id': 'only-b', 'text': 'Third sentence.', 'humanAnnotations': {
+                'annotatorB': 'PAIN_POINT', 'adjudicated': 'PAIN_POINT'
+            }},
+        ]
+        stats = get_dataset_statistics(records, mode='gold')
+        self.assertEqual(stats['dual_annotated_count'], 1)
+        self.assertEqual(stats['labelled_count'], 3)
+
+    def test_blank_text_is_not_counted_as_training_data(self):
+        records = [{
+            'id': f'blank-{i}', 'review_id': f'blank-review-{i}',
+            'text': '   ', 'humanAnnotations': {'adjudicated': category}
+        } for category in TAXONOMY_CATEGORIES for i in range(5)]
+        stats = get_dataset_statistics(records, mode='gold')
+        self.assertEqual(stats['labelled_count'], 0)
+        self.assertFalse(stats['training_eligibility']['is_eligible'])
+
+    def test_svm_training_refuses_empty_validation_or_test_partition(self):
+        records = []
+        for category in TAXONOMY_CATEGORIES:
+            found = 0
+            candidate = 0
+            while found < 4:
+                review_id = f'svm-train-only-{category}-{candidate}'
+                candidate += 1
+                if assign_review_to_split(review_id) != 'train':
+                    continue
+                records.append({
+                    'id': f'{category}-{found}', 'review_id': review_id,
+                    'text': f'Example sentence for {category} {found}.',
+                    'humanAnnotations': {'adjudicated': category}
+                })
+                found += 1
+        result = SvmClassifierArm().train(records, mode='gold')
+        self.assertFalse(result['success'])
+        self.assertEqual(result['status'], 'invalid_split')
+        self.assertEqual(result['split_counts']['val'], 0)
+        self.assertEqual(result['split_counts']['test'], 0)
+
+    def test_svm_gold_and_exploratory_artifacts_are_isolated(self):
+        records = []
+        for category in TAXONOMY_CATEGORIES:
+            for i in range(12):
+                records.append({
+                    'id': f'{category}-{i}',
+                    'review_id': f'SVM_MODE_{category}_{i}',
+                    'text': f'{category} example feedback with distinct token {i}.',
+                    'humanAnnotations': {'adjudicated': category},
+                    'exploratoryLabel': category
+                })
+        with tempfile.TemporaryDirectory() as temp_root:
+            with patch('server.ml.svm_arm.ARTIFACT_ROOT', temp_root), \
+                 patch('server.ml.svm_arm.ARTIFACT_DIR', temp_root):
+                arm = SvmClassifierArm()
+                gold_result = arm.train(records, mode='gold')
+                self.assertTrue(gold_result['success'], gold_result)
+                gold_model_path = os.path.join(temp_root, 'svm_model.joblib')
+                self.assertTrue(os.path.isfile(gold_model_path))
+
+                exploratory_result = arm.train(records, mode='exploratory')
+                self.assertTrue(exploratory_result['success'], exploratory_result)
+                exploratory_model_path = os.path.join(temp_root, 'svm_exploratory', 'svm_model.joblib')
+                self.assertTrue(os.path.isfile(exploratory_model_path))
+                self.assertTrue(os.path.isfile(gold_model_path))
+
+                gold_bundle = joblib.load(gold_model_path)
+                self.assertEqual(gold_bundle['metadata']['mode'], 'gold')
+                self.assertEqual(arm.metadata['mode'], 'gold')
+                self.assertTrue(arm.is_loaded)
 
     @classmethod
     def tearDownClass(cls):
