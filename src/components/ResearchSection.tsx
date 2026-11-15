@@ -34,6 +34,7 @@ interface ResearchSectionProps {
   records: FeedbackRecord[];
   onUpdateRecord: (updatedRecord: FeedbackRecord) => void;
   sourceName?: string;
+  initialTab?: 'taxonomy' | 'annotation' | 'benchmark';
 }
 
 const CATEGORIES: RequirementCategory[] = [
@@ -46,10 +47,12 @@ const CATEGORIES: RequirementCategory[] = [
 export const ResearchSection: React.FC<ResearchSectionProps> = ({
   records,
   onUpdateRecord,
-  sourceName = 'dataset'
+  sourceName = 'dataset',
+  initialTab = 'taxonomy'
 }) => {
-  // Internal Sub-navigation: 'taxonomy' | 'annotation' | 'benchmark'
-  const [researchTab, setResearchTab] = useState<'taxonomy' | 'annotation' | 'benchmark'>('taxonomy');
+  // The parent navigation selects the relevant workspace on entry.
+  const [researchTab, setResearchTab] = useState<'taxonomy' | 'annotation' | 'benchmark'>(initialTab);
+  useEffect(() => { setResearchTab(initialTab); }, [initialTab]);
 
   // Human annotation workbench state
   const [currentIndex, setCurrentIndex] = useState(0);
