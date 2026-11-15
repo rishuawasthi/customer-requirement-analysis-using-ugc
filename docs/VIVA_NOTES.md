@@ -96,37 +96,34 @@ Therefore, we implemented the rule-based heuristic as the transparent baseline, 
 
 ## 3. Step-by-Step Viva Demonstration Walkthrough
 
-Follow this exact walkthrough during your viva:
+Follow this exact walkthrough during your viva to demonstrate the restructured 3-section academic dashboard:
 
 1. **Step 1: Start Both Servers on Windows**
-   - Terminal 1 (Backend): `npm run server` (Running on `http://localhost:5000`)
-   - Terminal 2 (Frontend): `npm run dev` (Running on `http://localhost:3000`)
+   - Terminal 1 (Backend API): `npm run server` (Express listening on `http://localhost:5000` with `gemini-2.5-flash`)
+   - Terminal 2 (Frontend UI): `npm run dev` (Vite listening on `http://localhost:3000` / `5173`)
 
-2. **Step 2: Overview Tab**
-   - Show the active dataset: `semeval2015_research_ready.csv` (Curated 45-Set).
-   - Point out the 5 quantitative summary cards: Total Rows, Heuristic Baseline count, Gemini AI count, Actionable Needs, and Human Double-Annotated pairs.
-   - Point out the research integrity notice explaining that counts represent heuristic predictions, not ground truth.
+2. **Step 2: Section 1 — Implementation (Default Landing Page)**
+   - The application opens directly into the working classification pipeline.
+   - Point out the active dataset: `semeval2015_research_ready.csv` (Curated 45-Set).
+   - Use the record navigator (`< Prev`, `Next >`) to select sentence #1 (*"Please add an option to adjust screen backlight..."*).
+   - Select few-shot arm $k \in \{0, 2, 4, 8\}$ (default: $k=0$ zero-shot).
+   - Click **"Run Heuristic"** $\rightarrow$ Show the matched syntactic cues and rationale on the left card.
+   - Click **"Classify with Gemini"** $\rightarrow$ Show the `gemini-2.5-flash` structured output on the right card (Sentiment badge, Requirement category badge, verbatim evidence quote, scientific explanation, reported confidence).
+   - Highlight the **Independence Rule**: Feature requests take precedence even with negative sentiment.
+   - Click **"Test Custom Sentence"** to demonstrate the integrated sandbox:
+     - *"Please add support for UPI and PhonePe"* $\rightarrow$ Both models classify as **EXPLICIT_NEED**.
+     - *"I have to carry two chargers because the battery doesn't last"* $\rightarrow$ **IMPLICIT_NEED** (Sentiment: **NEGATIVE**).
+     - *"App freezes and crashes every time I upload a large file"* $\rightarrow$ **PAIN_POINT** (Sentiment: **NEGATIVE**).
+     - *"Great laptop, five stars"* $\rightarrow$ **NON_ACTIONABLE** (Sentiment: **POSITIVE**).
+   - Show the compact dataset switcher: Switch between **Curated (45)** and **Full (4,161)** without leaving the screen.
 
-3. **Step 3: Feedback Analysis Tab (Model Comparison)**
-   - Select a record in the table.
-   - Click **"Run Heuristic"** $\rightarrow$ Show the matched regex cues and linguistic explanation on the left card.
-   - Click **"Classify with Gemini AI"** $\rightarrow$ Show the Gemini structured output on the right card (Sentiment badge, Requirement category badge, verbatim evidence span, scientific explanation, model-reported confidence).
-   - Use the **Interactive Multi-Model Tester**:
-     - Type: *"Please add support for UPI and PhonePe"* $\rightarrow$ Both models classify as **EXPLICIT_NEED**.
-     - Type: *"I have to carry three chargers because the battery doesn't last two hours"* $\rightarrow$ Both models classify as **IMPLICIT_NEED** (Sentiment: **NEGATIVE**).
-     - Type: *"App freezes and crashes every time I tap pay"* $\rightarrow$ Both models classify as **PAIN_POINT** (Sentiment: **NEGATIVE**).
-     - Type: *"Great service, five stars"* $\rightarrow$ Both models classify as **NON_ACTIONABLE** (Sentiment: **POSITIVE**).
+3. **Step 3: Section 2 — Research (Methodology & Calibration)**
+   - Navigate to the **Research** tab:
+     - **Sub-tab 1 (Taxonomy & RQ1–RQ4):** Explain the 4-class taxonomy, operational boundary rules, and research questions.
+     - **Sub-tab 2 (Human Annotation & Alpha):** Demonstrate independent double-coding (Annotator A vs Annotator B), disagreement detection, adjudication, and live nominal Krippendorff's alpha reliability scoring.
+     - **Sub-tab 3 (Evaluation & Benchmark):** Walk through Table VI comparing our implemented heuristic baseline against few-shot LLMs and pending RoBERTa fine-tuning, emphasizing that pending cells are preserved without synthetic numbers.
 
-4. **Step 4: Human Annotation & Alpha Tab**
-   - Demonstrate the dual independent roles: Annotator A submits a label, Annotator B submits independently.
-   - Show how a disagreement triggers the Adjudication panel per Section VII of the manuscript.
-   - Show the live Krippendorff's Alpha scorecard with mathematical interpretation.
-
-5. **Step 5: Evaluation & Benchmark Tab**
-   - Walk the examiner through RQ1–RQ4.
-   - Show Table V (Dataset Statistics) and Table VI (Model Macro-F1 comparison), highlighting that pending cells are honestly preserved.
-   - Show Table VII detailing the 10 failure modes planned for qualitative error analysis.
-
-6. **Step 6: Dataset Switcher Tab**
-   - Switch to **"Full 4,161-Row SemEval Benchmark"** to prove the app handles real-world scale (531 reviews, 3,054 sentences) without lag or memory leaks.
-   - Switch back to the curated 45-set for swift demonstration.
+4. **Step 4: Section 3 — Documentation (Manuscript & System Specs)**
+   - Navigate to the **Documentation** tab:
+     - Show the research manuscript details (*"Designing a Benchmark for Classifying Explicit Needs, Implicit Needs, and Pain Points in User-Generated Content"*).
+     - Show the three-tier system architecture, technical stack, SemEval-2015 Task 12 ABSA provenance, and backend API contracts.

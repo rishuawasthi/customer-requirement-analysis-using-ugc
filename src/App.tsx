@@ -5,18 +5,43 @@
 
 import React, { useState, useEffect } from 'react';
 import { ActiveTab, Navbar } from './components/Navbar';
-import { OverviewSection } from './components/OverviewSection';
-import { FeedbackAnalysisSection } from './components/FeedbackAnalysisSection';
-import { HumanAnnotationSection } from './components/HumanAnnotationSection';
-import { EvaluationBenchmarkSection } from './components/EvaluationBenchmarkSection';
-import { DatasetSection } from './components/DatasetSection';
-import { AboutSection } from './components/AboutSection';
+import { ImplementationSection } from './components/ImplementationSection';
+import { ResearchSection } from './components/ResearchSection';
+import { DocumentationSection } from './components/DocumentationSection';
 import { FeedbackRecord } from './types';
 import { parseCSV, processRawRows } from './utils/fileParser';
 import { classifyFeedback } from './utils/classifier';
 
+const ANNOTATION_STORAGE_PREFIX = 'ugc_human_annotations_';
+
+function getStoredAnnotations(source: string): Record<string, FeedbackRecord['humanAnnotations']> {
+  try {
+    const key = ANNOTATION_STORAGE_PREFIX + source.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistAnnotation(source: string, recordId: string, annotations: FeedbackRecord['humanAnnotations']) {
+  try {
+    const key = ANNOTATION_STORAGE_PREFIX + source.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const stored = getStoredAnnotations(source);
+    if (annotations) {
+      stored[recordId] = annotations;
+    } else {
+      delete stored[recordId];
+    }
+    localStorage.setItem(key, JSON.stringify(stored));
+  } catch {
+    // safe fallback if storage is disabled
+  }
+}
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  // Section 1: Implementation is the default landing page
+  const [activeTab, setActiveTab] = useState<ActiveTab>('implementation');
   const [records, setRecords] = useState<FeedbackRecord[]>([]);
   const [allColumns, setAllColumns] = useState<string[]>([]);
   const [detectedTextColumn, setDetectedTextColumn] = useState<string>('text');
@@ -36,11 +61,26 @@ export default function App() {
           const rows = parseCSV(csvText);
           const result = processRawRows(rows);
           if (result.records.length > 0) {
-            setRecords(result.records);
+            const initialSource = 'semeval2015_research_ready.csv (Curated 45-Set)';
+            const savedAnnotations = getStoredAnnotations(initialSource);
+
+            // Re-attach saved human annotations across browser refreshes
+            const hydrated = result.records.map(r => {
+              if (savedAnnotations[r.id]) {
+                return {
+                  ...r,
+                  humanAnnotations: savedAnnotations[r.id],
+                  isUserAnnotated: true
+                };
+              }
+              return r;
+            });
+
+            setRecords(hydrated);
             setAllColumns(result.allColumns);
             setDetectedTextColumn(result.detectedTextColumn);
             setMetadataColumns(result.metadataColumns);
-            setSourceName('semeval2015_research_ready.csv (Curated 45-Set)');
+            setSourceName(initialSource);
             setUniqueReviewsCount(result.uniqueReviewsCount || result.records.length);
             setUniqueSentencesCount(result.uniqueSentencesCount || result.records.length);
           }
@@ -57,6 +97,9 @@ export default function App() {
 
   // Update a single record (e.g. analyzed, annotated by human, or adjudicated)
   const handleUpdateRecord = (updatedRecord: FeedbackRecord) => {
+    if (updatedRecord.humanAnnotations) {
+      persistAnnotation(sourceName, updatedRecord.id, updatedRecord.humanAnnotations);
+    }
     setRecords(prev =>
       prev.map(r => (r.id === updatedRecord.id ? updatedRecord : r))
     );
@@ -78,7 +121,49 @@ export default function App() {
     );
   };
 
-  // Replace records when a new dataset or preset is loaded
+  // Switch between curated (45) and full (4,161) datasets seamlessly
+  const handleQuickSwitchDataset = async (preset: 'curated' | 'full') => {
+    setIsAutoLoading(true);
+    const filename = preset === 'curated'
+      ? 'semeval2015_research_ready.csv'
+      : 'semeval2015_research_ready_full.csv';
+    try {
+      const res = await fetch(`/${filename}`);
+      if (res.ok) {
+        const csvText = await res.text();
+        const rows = parseCSV(csvText);
+        const result = processRawRows(rows);
+        if (result.records.length > 0) {
+          const savedAnnotations = getStoredAnnotations(filename);
+
+          const hydrated = result.records.map(r => {
+            if (savedAnnotations[r.id]) {
+              return {
+                ...r,
+                humanAnnotations: savedAnnotations[r.id],
+                isUserAnnotated: true
+              };
+            }
+            return r;
+          });
+
+          setRecords(hydrated);
+          setAllColumns(result.allColumns);
+          setDetectedTextColumn(result.detectedTextColumn);
+          setMetadataColumns(result.metadataColumns);
+          setSourceName(filename);
+          setUniqueReviewsCount(result.uniqueReviewsCount || result.records.length);
+          setUniqueSentencesCount(result.uniqueSentencesCount || result.records.length);
+        }
+      }
+    } catch (err) {
+      console.warn('Dataset switch error:', err);
+    } finally {
+      setIsAutoLoading(false);
+    }
+  };
+
+  // Replace records when custom file is loaded
   const handleDatasetLoaded = (
     newRecords: FeedbackRecord[],
     newAllCols: string[],
@@ -88,7 +173,19 @@ export default function App() {
     newUniqueReviews?: number,
     newUniqueSentences?: number
   ) => {
-    setRecords(newRecords);
+    const savedAnnotations = getStoredAnnotations(newSource);
+    const hydrated = newRecords.map(r => {
+      if (savedAnnotations[r.id]) {
+        return {
+          ...r,
+          humanAnnotations: savedAnnotations[r.id],
+          isUserAnnotated: true
+        };
+      }
+      return r;
+    });
+
+    setRecords(hydrated);
     setAllColumns(newAllCols);
     setDetectedTextColumn(newDetectedTextCol);
     setMetadataColumns(newMetaCols);
@@ -103,14 +200,16 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
-      {/* Clean Academic Navbar */}
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-slate-200 selection:text-slate-900">
+      {/* 3-Section Restructured Academic Navbar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         recordCount={records.length}
         classifiedCount={classifiedCount}
         annotatedCount={annotatedPairCount}
+        sourceName={sourceName}
+        onQuickSwitchDataset={handleQuickSwitchDataset}
       />
 
       {/* Main Content Area */}
@@ -121,68 +220,39 @@ export default function App() {
           </div>
         ) : (
           <>
-            {activeTab === 'overview' && (
-              <OverviewSection
-                records={records}
-                sourceName={sourceName}
-                detectedTextColumn={detectedTextColumn}
-                uniqueReviewsCount={uniqueReviewsCount}
-                uniqueSentencesCount={uniqueSentencesCount}
-                onGoToAnalysis={() => setActiveTab('analysis')}
-                onGoToDataset={() => setActiveTab('dataset')}
-                onGoToAnnotation={() => setActiveTab('annotation')}
-                onBatchClassify={handleBatchClassifyAll}
-              />
-            )}
-
-            {activeTab === 'analysis' && (
-              <FeedbackAnalysisSection
+            {/* SECTION 1: IMPLEMENTATION (Default Landing Page) */}
+            {activeTab === 'implementation' && (
+              <ImplementationSection
                 records={records}
                 onUpdateRecord={handleUpdateRecord}
                 onBatchClassifyAll={handleBatchClassifyAll}
                 sourceName={sourceName}
+                onSelectPresetDataset={handleQuickSwitchDataset}
+                onCustomFileLoaded={handleDatasetLoaded}
               />
             )}
 
-            {activeTab === 'annotation' && (
-              <HumanAnnotationSection
+            {/* SECTION 2: RESEARCH */}
+            {activeTab === 'research' && (
+              <ResearchSection
                 records={records}
                 onUpdateRecord={handleUpdateRecord}
                 sourceName={sourceName}
               />
             )}
 
-            {activeTab === 'evaluation' && (
-              <EvaluationBenchmarkSection
-                records={records}
-                sourceName={sourceName}
-              />
-            )}
-
-            {activeTab === 'dataset' && (
-              <DatasetSection
-                records={records}
-                allColumns={allColumns}
-                detectedTextColumn={detectedTextColumn}
-                metadataColumns={metadataColumns}
-                sourceName={sourceName}
-                uniqueReviewsCount={uniqueReviewsCount}
-                uniqueSentencesCount={uniqueSentencesCount}
-                onDatasetLoaded={handleDatasetLoaded}
-              />
-            )}
-
-            {activeTab === 'about' && <AboutSection />}
+            {/* SECTION 3: DOCUMENTATION */}
+            {activeTab === 'documentation' && <DocumentationSection />}
           </>
         )}
       </main>
 
       {/* Clean Academic Footer */}
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+      <footer className="bg-white border-t border-slate-200 py-3.5 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>Customer Requirement Analysis Using User Generated Content</span>
           <span className="text-slate-400">
-            College Academic Research Project Prototype • ABES Engineering College
+            Department of Computer Science &amp; Engineering • ABES Engineering College
           </span>
         </div>
       </footer>
