@@ -17,6 +17,15 @@ export interface ClassificationResult {
   method: string;
 }
 
+export interface ExemplarStatus {
+  k: number;
+  total_requested: number;
+  total_available: number;
+  missing_count: number;
+  is_sufficient: boolean;
+  per_category?: Record<string, { requested: number; available: number; included: number; missing: number }>;
+}
+
 export interface GeminiClassificationResult {
   sentiment: SentimentCategory;
   requirement_category: RequirementCategory;
@@ -26,9 +35,23 @@ export interface GeminiClassificationResult {
   model: string;
   promptVersion: string;
   k: number;
+  exemplar_status?: ExemplarStatus;
   timestamp: string;
   status: 'success' | 'error';
   errorMessage?: string;
+  latencyMs?: number;
+}
+
+export interface MLClassificationResult {
+  requirement_category: RequirementCategory;
+  confidence: number;
+  model: string;
+  method: string;
+  decision_scores?: Record<string, number>;
+  status: 'success' | 'awaiting_data' | 'error';
+  errorMessage?: string;
+  latencyMs?: number;
+  timestamp: string;
 }
 
 export interface HumanAnnotations {
@@ -50,14 +73,20 @@ export interface FeedbackRecord {
   explanation?: string;
   matchedCues?: string[];
   
-  // 2. Gemini AI Classifier (Independent dimensions)
+  // 2. Formal Arm 1: TF-IDF + Linear SVM
+  svmResult?: MLClassificationResult;
+
+  // 3. Formal Arm 2: Fine-tuned RoBERTa-base
+  robertaResult?: MLClassificationResult;
+
+  // 4. Formal Arm 3: Gemini AI Classifier (Independent dimensions)
   geminiResult?: GeminiClassificationResult;
   
-  // 3. Human Annotations (Strictly independent)
+  // 5. Human Annotations (Strictly independent)
   isUserAnnotated?: boolean;
   humanAnnotations?: HumanAnnotations;
 
-  // 4. Academic Dataset Metadata
+  // 6. Academic Dataset Metadata
   reviewId?: string;
   sentenceId?: string;
   domain?: string;

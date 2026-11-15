@@ -207,55 +207,55 @@ export const ResearchSection: React.FC<ResearchSectionProps> = ({
                   </span>
                 </div>
                 <p className="text-slate-700 leading-relaxed">
-                  "How reliably can independent human annotators distinguish explicit needs, implicit needs, pain points, and non-actionable content in reviews, as measured by Krippendorff's alpha?"
+                  "How reliably can independent human annotators distinguish explicit needs, implicit needs, pain points, and non-actionable content in product and application reviews, as measured by Krippendorff's alpha?"
                 </p>
                 <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200">
-                  Target: Nominal Krippendorff's α ≥ 0.80 for high reliability.
+                  Target: Nominal Krippendorff's α ≥ 0.80 across independent coders (A &amp; B).
                 </div>
               </div>
 
               <div className="p-3.5 rounded bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-semibold text-slate-900">RQ2: Baseline Performance</span>
+                  <span className="font-mono font-semibold text-slate-900">RQ2: Comparative Model Performance</span>
                   <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded">
-                    Baseline Active
+                    3 Paradigms Integrated
                   </span>
                 </div>
                 <p className="text-slate-700 leading-relaxed">
-                  "How effectively do traditional NLP methods (TF-IDF + Linear SVM, regex heuristics) classify requirements compared to fine-tuned transformer models (RoBERTa)?"
+                  "How do TF-IDF with a linear SVM, a fine-tuned RoBERTa classifier, and zero-/few-shot LLM prompting compare on this four-way classification task, in terms of Macro-F1 and per-class precision and recall?"
                 </p>
                 <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200">
-                  Metric: Macro-F1 across the four taxonomy categories.
+                  Metric: Macro-F1, per-class precision, recall, and class-weighted loss.
                 </div>
               </div>
 
               <div className="p-3.5 rounded bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-semibold text-slate-900">RQ3: Few-Shot LLM Efficacy</span>
-                  <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded">
-                    Integrated (Gemini)
+                  <span className="font-mono font-semibold text-slate-900">RQ3: Cross-Domain Generalization</span>
+                  <span className="text-[10px] font-medium bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.2 rounded">
+                    Held-Out Domain
                   </span>
                 </div>
                 <p className="text-slate-700 leading-relaxed">
-                  "How do zero-shot and few-shot Large Language Models (k = 0, 2, 4, 8) compare to fine-tuned supervised models without domain-specific training?"
+                  "How does model performance change when a model developed on product-review data is evaluated on application reviews from a held-out domain?"
                 </p>
                 <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200">
-                  Tested: Google Gemini 2.5 Flash via official `@google/genai` SDK.
+                  Design: In-domain vs out-of-domain transfer evaluation.
                 </div>
               </div>
 
               <div className="p-3.5 rounded bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-semibold text-slate-900">RQ4: Cross-Domain Generalization</span>
-                  <span className="text-[10px] font-medium bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded">
-                    Experimental Design
+                  <span className="font-mono font-semibold text-slate-900">RQ4 (Secondary): Few-Shot Exemplar Scaling</span>
+                  <span className="text-[10px] font-medium bg-purple-50 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded">
+                    k ∈ (0, 2, 4, 8) per class
                   </span>
                 </div>
                 <p className="text-slate-700 leading-relaxed">
-                  "To what extent do requirement classifiers trained on one product domain (Laptops) transfer to an unrelated service domain (Restaurants)?"
+                  "How does the number of in-context examples (k = 0, 2, 4, 8 per class, totals: 0, 8, 16, 32) affect LLM classification performance on the four-category task?"
                 </p>
                 <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200">
-                  Design: Train on Laptop (2,314 rows), evaluate on Restaurant (1,847 rows).
+                  Tested: Gemini 2.5 Flash with balanced human-adjudicated training exemplars.
                 </div>
               </div>
             </div>
@@ -543,123 +543,143 @@ export const ResearchSection: React.FC<ResearchSectionProps> = ({
         <div className="space-y-6">
           {/* Table VI Model Benchmark Comparison */}
           <div className="bg-white p-5 rounded border border-slate-200 space-y-4">
-            <div className="pb-2 border-b border-slate-100">
-              <h2 className="text-sm font-semibold text-slate-900">Table VI: Research Baseline &amp; Model Benchmark</h2>
-              <p className="text-xs text-slate-500">
-                Comparative classification performance across model paradigms (Section VIII of Manuscript)
-              </p>
+            <div className="pb-2 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Table VI: In-Domain and Out-of-Domain Macro-F1 by Model (Results Template)</h2>
+                <p className="text-xs text-slate-500">
+                  Manuscript Section VIII benchmark protocol across traditional ML, supervised transformers, and LLM prompting
+                </p>
+              </div>
+              <span className="text-[11px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                Protocol: 70/15/15 Review Split
+              </span>
             </div>
 
             <div className="overflow-x-auto text-xs">
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50 text-slate-700 text-left font-semibold">
                   <tr>
-                    <th className="px-3 py-2.5">Model / Family</th>
+                    <th className="px-3 py-2.5">Model / Configuration</th>
                     <th className="px-3 py-2.5">Paradigm</th>
-                    <th className="px-3 py-2.5">Macro-F1</th>
-                    <th className="px-3 py-2.5">Precision</th>
-                    <th className="px-3 py-2.5">Recall</th>
+                    <th className="px-3 py-2.5">In-Domain Macro-F1 (95% CI)</th>
+                    <th className="px-3 py-2.5">Out-of-Domain Macro-F1 (95% CI)</th>
                     <th className="px-3 py-2.5">Implementation Status</th>
+                    <th className="px-3 py-2.5">Evaluation Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  <tr className="bg-slate-50/60 font-medium">
-                    <td className="px-3 py-2 text-slate-900">Rule-Based Heuristic</td>
+                  <tr>
+                    <td className="px-3 py-2 text-slate-900 font-medium">Majority-Class Floor</td>
+                    <td className="px-3 py-2 text-slate-500">Statistical Baseline</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
+                    <td className="px-3 py-2">
+                      <span className="text-[10px] font-medium bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                        Analytical Baseline
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-slate-400 font-mono text-[11px]">[Pending Full Split]</td>
+                  </tr>
+
+                  <tr className="bg-slate-50/50">
+                    <td className="px-3 py-2 text-slate-900 font-medium">Rule-Based Heuristic</td>
                     <td className="px-3 py-2 text-slate-500">Syntactic Regex Rules</td>
-                    <td className="px-3 py-2 font-mono text-slate-900">0.625 (sample)</td>
-                    <td className="px-3 py-2 font-mono text-slate-500">0.641</td>
-                    <td className="px-3 py-2 font-mono text-slate-500">0.625</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending Evaluation Split]</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending Evaluation Split]</td>
                     <td className="px-3 py-2">
                       <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
                         Implemented Baseline
                       </span>
                     </td>
+                    <td className="px-3 py-2 text-emerald-700 font-medium text-[11px]">Active in Pipeline</td>
                   </tr>
 
                   <tr>
-                    <td className="px-3 py-2 text-slate-900">TF-IDF + Linear SVM</td>
-                    <td className="px-3 py-2 text-slate-500">Statistical N-gram (n=1..3)</td>
-                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
+                    <td className="px-3 py-2 text-slate-900 font-medium">TF-IDF + Linear SVM (Arm 1)</td>
+                    <td className="px-3 py-2 text-slate-500">Traditional ML (1-2 gram, Balanced)</td>
                     <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
                     <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
                     <td className="px-3 py-2">
-                      <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                        Pending Execution
+                      <span className="text-[10px] font-medium bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded">
+                        Python Service Active
                       </span>
                     </td>
+                    <td className="px-3 py-2 text-amber-700 font-medium text-[11px]">Awaiting Adjudicated Data</td>
                   </tr>
 
                   <tr>
-                    <td className="px-3 py-2 text-slate-900">Fine-tuned RoBERTa-base</td>
-                    <td className="px-3 py-2 text-slate-500">Supervised Transformer</td>
+                    <td className="px-3 py-2 text-slate-900 font-medium">RoBERTa-base (Arm 2)</td>
+                    <td className="px-3 py-2 text-slate-500">Supervised 4-way Transformer</td>
                     <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
                     <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
+                    <td className="px-3 py-2">
+                      <span className="text-[10px] font-medium bg-indigo-50 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded">
+                        Python Service Active
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-amber-700 font-medium text-[11px]">Awaiting Adjudicated Data</td>
+                  </tr>
+
+                  <tr className="bg-slate-50/40">
+                    <td className="px-3 py-2 text-slate-900 font-medium">Gemini 2.5 Flash, k=0</td>
+                    <td className="px-3 py-2 text-slate-500">Zero-Shot Prompting</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
                     <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
                     <td className="px-3 py-2">
-                      <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                        Pending Gold Labels
+                      <span className="text-[10px] font-medium bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded">
+                        Live API Integrated
                       </span>
                     </td>
+                    <td className="px-3 py-2 text-emerald-700 font-medium text-[11px]">Active in Pipeline</td>
                   </tr>
 
                   <tr className="bg-slate-50/40">
-                    <td className="px-3 py-2 text-slate-900">Gemini 2.5 Flash (k=0)</td>
-                    <td className="px-3 py-2 text-slate-500">Zero-Shot LLM</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
+                    <td className="px-3 py-2 text-slate-900 font-medium">Gemini 2.5 Flash, k=2</td>
+                    <td className="px-3 py-2 text-slate-500">Few-Shot (8 exemplars, 2/class)</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
                     <td className="px-3 py-2">
-                      <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
-                        Integrated &amp; Verified
+                      <span className="text-[10px] font-medium bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded">
+                        Live API Integrated
                       </span>
                     </td>
+                    <td className="px-3 py-2 text-emerald-700 font-medium text-[11px]">Active in Pipeline</td>
                   </tr>
 
                   <tr className="bg-slate-50/40">
-                    <td className="px-3 py-2 text-slate-900">Gemini 2.5 Flash (k=2)</td>
-                    <td className="px-3 py-2 text-slate-500">Few-Shot Boundary Calibration</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
+                    <td className="px-3 py-2 text-slate-900 font-medium">Gemini 2.5 Flash, k=4</td>
+                    <td className="px-3 py-2 text-slate-500">Few-Shot (16 exemplars, 4/class)</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
                     <td className="px-3 py-2">
-                      <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
-                        Integrated &amp; Verified
+                      <span className="text-[10px] font-medium bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded">
+                        Live API Integrated
                       </span>
                     </td>
+                    <td className="px-3 py-2 text-emerald-700 font-medium text-[11px]">Active in Pipeline</td>
                   </tr>
 
                   <tr className="bg-slate-50/40">
-                    <td className="px-3 py-2 text-slate-900">Gemini 2.5 Flash (k=4)</td>
-                    <td className="px-3 py-2 text-slate-500">Few-Shot Balanced (1 per class)</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
+                    <td className="px-3 py-2 text-slate-900 font-medium">Gemini 2.5 Flash, k=8</td>
+                    <td className="px-3 py-2 text-slate-500">Few-Shot (32 exemplars, 8/class)</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">[Pending]</td>
                     <td className="px-3 py-2">
-                      <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
-                        Integrated &amp; Verified
+                      <span className="text-[10px] font-medium bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded">
+                        Live API Integrated
                       </span>
                     </td>
-                  </tr>
-
-                  <tr className="bg-slate-50/40">
-                    <td className="px-3 py-2 text-slate-900">Gemini 2.5 Flash (k=8)</td>
-                    <td className="px-3 py-2 text-slate-500">Few-Shot Balanced (2 per class)</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2 font-mono text-slate-700">Live API</td>
-                    <td className="px-3 py-2">
-                      <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
-                        Integrated &amp; Verified
-                      </span>
-                    </td>
+                    <td className="px-3 py-2 text-emerald-700 font-medium text-[11px]">Active in Pipeline</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-              <span className="font-semibold text-slate-700">Integrity Note: </span>
-              In compliance with academic standards, unexecuted experiments remain explicitly marked as pending. Metric columns are not populated with synthetic or fabricated numbers.
+            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
+              <div>
+                <span className="font-semibold text-slate-700">Integrity Note: </span>
+                Following IEEE manuscript conventions, empirical results for unexecuted experimental configurations are displayed as [Pending]. Metrics are computed exclusively from verified test split executions and never populated with synthetic or fabricated values.
+              </div>
             </div>
           </div>
 

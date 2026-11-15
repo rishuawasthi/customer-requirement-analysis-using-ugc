@@ -33,10 +33,10 @@ export const DocumentationSection: React.FC = () => {
             "Designing a Benchmark for Classifying Explicit Needs, Implicit Needs, and Pain Points in User-Generated Content"
           </div>
           <div className="text-slate-600">
-            <strong>Authors:</strong> Anant Upadhyay, Harsh Singh, Devansh Garg, Rishu Awasthi
+            <strong>Authors:</strong> Rupika Upadhyay, Roshni Singh, Ronak Garg, Rishu Awasthi
           </div>
           <div className="text-slate-500">
-            Department of Computer Science and Engineering, ABES Engineering College, Ghaziabad, Uttar Pradesh, India
+            <strong>Supervisor:</strong> Mr. Praveen Kumar Rai • Department of Computer Science and Engineering, ABES Engineering College, Ghaziabad, Uttar Pradesh, India
           </div>
 
           <div className="bg-slate-50 p-3 rounded border border-slate-200 text-slate-700 text-xs leading-relaxed space-y-1.5">
@@ -130,69 +130,118 @@ export const DocumentationSection: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Dataset Provenance & Attribution */}
+      {/* 3. Dataset Provenance, Partitioning & Academic Integrity */}
       <div className="bg-white p-5 rounded border border-slate-200 space-y-3 text-xs">
         <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
           <Database className="w-4 h-4 text-slate-700" />
-          <h2 className="text-sm font-semibold text-slate-900">Dataset Provenance &amp; Licensing</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Dataset Provenance, Partitioning &amp; Academic Integrity</h2>
         </div>
 
-        <div className="space-y-2 text-slate-700 leading-relaxed">
-          <p>
-            The project benchmarks customer requirements using data derived from the internationally recognized <strong>SemEval-2015 Task 12 (Aspect Based Sentiment Analysis)</strong> benchmark:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-slate-600">
-            <li><strong>Laptop Domain:</strong> 2,314 customer reviews spanning hardware, software, performance, and usability.</li>
-            <li><strong>Restaurant Domain:</strong> 1,847 customer reviews spanning food, service, ambience, and price.</li>
-            <li><strong>Curated Presentation Set:</strong> 45 balanced rows (25 Laptop, 20 Restaurant) for swift viva demonstrations.</li>
-          </ul>
-          <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-[11px] text-slate-600 font-mono">
-            Citation: Maria Pontiki, Dimitris Galanis, Haris Papageorgiou, Suresh Manandhar, and Ion Androutsopoulos. 2015. "SemEval-2015 Task 12: Aspect Based Sentiment Analysis." In Proceedings of the 9th International Workshop on Semantic Evaluation (SemEval 2015), pages 486–495.
+        <div className="space-y-3 text-slate-700 leading-relaxed">
+          <div className="p-3 bg-blue-50/60 rounded border border-blue-200 text-blue-900 space-y-1">
+            <div className="font-semibold text-xs flex items-center space-x-1">
+              <span>Academic Provenance Distinction:</span>
+            </div>
+            <p className="text-[11px] leading-relaxed">
+              In this software implementation, <strong>SemEval-2015 Task 12 (Aspect-Based Sentiment Analysis)</strong> data is utilized as an <strong>exploratory experimental proxy dataset</strong> (Laptop: 2,314 rows, Restaurant: 1,847 rows). The theoretical manuscript benchmark specification cites <strong>Amazon Product Reviews (McAuley Lab)</strong> for in-domain evaluation and the <strong>AWARE dataset (Alturaief et al.)</strong> for out-of-domain app feedback. To maintain strict scientific integrity, SemEval data is never misrepresented as Amazon or AWARE data.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-1">Review ID-Based Group Partitioning:</h3>
+            <p className="text-slate-600 text-[11px]">
+              Splitting is performed strictly at the <code>review_id</code> level using reproducible hash partitioning (70% Train, 15% Validation, 15% Test with seed=42). All sentences originating from the same customer review are allocated to the exact same split, completely eliminating intra-review syntactic and lexical leakage.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-1">Ground-Truth Training Integrity:</h3>
+            <p className="text-slate-600 text-[11px]">
+              Supervised model arms (Linear SVM and RoBERTa-base) can only be trained on verified, adjudicated human labels from the training partition. Training on regex heuristic predictions or pseudo-labels is strictly prohibited. If fewer than 4 adjudicated records per category exist in the training split, supervised training is withheld with an explicit status message.
+            </p>
           </div>
         </div>
       </div>
 
-      {/* 4. Backend API Contract Specification */}
+      {/* 4. Complete Backend API Contract Specification */}
       <div className="bg-white p-5 rounded border border-slate-200 space-y-3 text-xs">
         <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
           <Terminal className="w-4 h-4 text-slate-700" />
-          <h2 className="text-sm font-semibold text-slate-900">Backend API Specification</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Backend API Contracts</h2>
         </div>
 
         <div className="space-y-3 text-slate-700">
-          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5 font-mono text-[11px]">
+          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1 font-mono text-[11px]">
             <div className="flex items-center space-x-2">
               <span className="bg-slate-200 text-slate-800 px-1.5 py-0.2 rounded font-bold text-[10px]">GET</span>
-              <span className="text-slate-900 font-semibold">/api/health</span>
+              <span className="text-slate-900 font-semibold">/api/health &amp; /api/ml/status</span>
             </div>
             <p className="text-slate-600 font-sans text-xs">
-              Returns health status, active model identifier, prompt version (<code>v1.0-research</code>), and whether <code>GEMINI_API_KEY</code> is configured.
+              Returns health status, active Gemini model identifier, prompt version (<code>v1.0-research</code>), Python ML subsystem status, and training dataset eligibility counts.
             </p>
           </div>
 
-          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5 font-mono text-[11px]">
+          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1 font-mono text-[11px]">
             <div className="flex items-center space-x-2">
               <span className="bg-slate-800 text-white px-1.5 py-0.2 rounded font-bold text-[10px]">POST</span>
-              <span className="text-slate-900 font-semibold">/api/classify</span>
+              <span className="text-slate-900 font-semibold">/api/ml/classify-all</span>
             </div>
             <div className="text-slate-600 font-sans text-xs">
-              <strong>Body:</strong> <code>{'{ text: string, config?: { k?: 0|2|4|8, model?: string } }'}</code>
+              <strong>Body:</strong> <code>{'{ text: string, k?: 0|2|4|8 }'}</code>
             </div>
             <p className="text-slate-600 font-sans text-xs">
-              Classifies a single sentence along both dimensions. Returns structured JSON: <code>sentiment</code>, <code>requirement_category</code>, <code>evidence</code>, <code>explanation</code>, and <code>confidence</code>.
+              Coordinates simultaneous evaluation across Linear SVM (Arm 1), RoBERTa-base (Arm 2), and Gemini AI (Arm 3), returning side-by-side predictions, confidence scores, and execution latency.
             </p>
           </div>
 
-          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5 font-mono text-[11px]">
+          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1 font-mono text-[11px]">
             <div className="flex items-center space-x-2">
               <span className="bg-slate-800 text-white px-1.5 py-0.2 rounded font-bold text-[10px]">POST</span>
-              <span className="text-slate-900 font-semibold">/api/batch-classify</span>
+              <span className="text-slate-900 font-semibold">/api/annotations/sync &amp; /api/ml/train</span>
             </div>
             <div className="text-slate-600 font-sans text-xs">
-              <strong>Body:</strong> <code>{'{ items: Array<{ id: string, text: string }>, config?: { k?: number, concurrency?: number } }'}</code>
+              <strong>Body:</strong> <code>{'{ records: FeedbackRecord[] }'}</code> / <code>{'{ model: "svm" | "roberta" }'}</code>
             </div>
             <p className="text-slate-600 font-sans text-xs">
-              Processes a batch of feedback records with server-controlled concurrency and throttled exponential backoff.
+              Synchronizes dual human annotations to backend storage, partitions by review ID, and triggers supervised training when eligibility thresholds (≥4 adjudicated examples/class) are satisfied.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Viva Defense Preparation Guide */}
+      <div className="bg-white p-5 rounded border border-slate-200 space-y-4 text-xs">
+        <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
+          <BookOpen className="w-4 h-4 text-slate-700" />
+          <h2 className="text-sm font-semibold text-slate-900">Viva Defense Q&amp;A Preparation</h2>
+        </div>
+
+        <div className="space-y-3 text-slate-700 leading-relaxed">
+          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1">
+            <span className="font-semibold text-slate-900">Q1: Why classify customer requirements instead of standard sentiment analysis?</span>
+            <p className="text-slate-600 text-[11px]">
+              Sentiment analysis only reports emotional valence (positive/negative), not actionable engineering demands. A negative review could be an explicit feature request ("awful app, add offline mode"), an implicit need ("battery drains in 2h"), or an unresolvable complaint ("terrible"). Our four-class taxonomy decouples sentiment from actionable requirement engineering.
+            </p>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1">
+            <span className="font-semibold text-slate-900">Q2: What is the boundary precedence rule between Implicit Needs and Pain Points?</span>
+            <p className="text-slate-600 text-[11px]">
+              Per manuscript Section V (Table II): If a statement expresses customer dissatisfaction and describes a limitation from which a concrete actionable improvement can reasonably be inferred (e.g. thermal throttling implying cooling needs), it is classified as an <em>Implicit Need</em>. If it describes an acute crash or failure with no inferable new feature, it is classified as a <em>Pain Point</em>. Direct requests always take highest precedence as <em>Explicit Needs</em>.
+            </p>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1">
+            <span className="font-semibold text-slate-900">Q3: Why is Krippendorff's alpha preferred over Cohen's kappa or percentage agreement?</span>
+            <p className="text-slate-600 text-[11px]">
+              Krippendorff's alpha natively handles nominal multi-class data, corrects mathematically for chance agreement, and operates seamlessly even when items have missing annotations from one of the coders, unlike Cohen's kappa which assumes fully paired ratings.
+            </p>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1">
+            <span className="font-semibold text-slate-900">Q4: Why must the train/validation/test split be grouped by review_id?</span>
+            <p className="text-slate-600 text-[11px]">
+              Individual sentences within the same review share writing style, vocabulary, product context, and idiosyncratic reviewer syntax. A random sentence split would leak intra-review stylistic signals between training and test sets, artificially inflating test scores. Grouping by <code>review_id</code> prevents this data leakage.
             </p>
           </div>
         </div>

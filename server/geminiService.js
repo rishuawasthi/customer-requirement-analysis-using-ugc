@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import { SYSTEM_INSTRUCTION, PROMPT_VERSION, buildPromptWithExemplars } from './prompts.js';
+import { SYSTEM_INSTRUCTION, PROMPT_VERSION, buildPromptWithExemplars, getFewShotExemplarStatus } from './prompts.js';
 
 const VALID_SENTIMENTS = ['POSITIVE', 'NEGATIVE', 'NEUTRAL', 'MIXED'];
 const VALID_REQUIREMENTS = ['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'];
@@ -129,6 +129,8 @@ export async function classifyWithGemini(text, options = {}) {
         throw new Error(`Unsupported requirement label '${requirementCategory}' received from Gemini.`);
       }
 
+      const exemplarStatus = getFewShotExemplarStatus(k);
+
       return {
         sentiment,
         requirement_category: requirementCategory,
@@ -138,6 +140,7 @@ export async function classifyWithGemini(text, options = {}) {
         model: modelName,
         promptVersion: PROMPT_VERSION,
         k,
+        exemplar_status: exemplarStatus,
         timestamp: new Date().toISOString(),
         status: 'success'
       };

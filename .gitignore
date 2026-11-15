@@ -10,3 +10,12 @@ coverage/
 .vscode/
 .idea/
 *.tmp
+**/__pycache__/
+*.pyc
+server/ml/artifacts/*.joblib
+server/ml/artifacts/*.bin
+server/ml/artifacts/*.safetensors
+server/data/*.json
+server/ml/data/*.json
+!server/data/.gitkeep
+!server/ml/data/.gitkeep

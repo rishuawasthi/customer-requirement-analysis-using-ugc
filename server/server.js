@@ -1,9 +1,19 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { classifyWithGemini, isGeminiConfigured } from './geminiService.js';
-import { PROMPT_VERSION } from './prompts.js';
+import { PROMPT_VERSION, getFewShotExemplarStatus } from './prompts.js';
+import {
+  getMlStatus,
+  syncDatasetWithMl,
+  classifyWithSvm,
+  trainSvm,
+  classifyWithRoberta,
+  trainRoberta,
+  classifyAllModels
+} from './mlBridge.js';
 
 // Resolve directory name
 const __filename = fileURLToPath(import.meta.url);
@@ -34,15 +44,170 @@ app.use((req, res, next) => {
  * Health Check & Status Endpoint
  * GET /api/health
  */
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  let mlStatus = null;
+  try {
+    mlStatus = await getMlStatus();
+  } catch (err) {
+    mlStatus = { status: 'offline', error: err.message };
+  }
+
   res.json({
     status: 'ok',
     geminiConfigured: isGeminiConfigured(),
     model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     promptVersion: PROMPT_VERSION,
+    mlService: mlStatus,
     port: PORT,
     timestamp: new Date().toISOString()
   });
+});
+
+/**
+ * Machine Learning Subsystem Status
+ * GET /api/ml/status
+ */
+app.get('/api/ml/status', async (req, res) => {
+  try {
+    const status = await getMlStatus();
+    return res.json({ success: true, ...status });
+  } catch (err) {
+    return res.status(503).json({
+      success: false,
+      code: 'ML_SERVICE_UNAVAILABLE',
+      error: err.message || 'Failed to retrieve Python ML service status'
+    });
+  }
+});
+
+/**
+ * Human Annotation Synchronization Endpoint
+ * POST /api/annotations/sync
+ * Body: { records: Array<FeedbackRecord> }
+ */
+app.post('/api/annotations/sync', async (req, res) => {
+  try {
+    const { records = [] } = req.body || {};
+    if (!Array.isArray(records)) {
+      return res.status(400).json({ success: false, error: 'Expected records array' });
+    }
+
+    const annotationsPath = path.join(__dirname, 'data', 'human_annotations.json');
+    fs.mkdirSync(path.dirname(annotationsPath), { recursive: true });
+    fs.writeFileSync(annotationsPath, JSON.stringify(records, null, 2), 'utf-8');
+
+    // Forward to Python ML engine for review_id partitioning and stats update
+    const mlSync = await syncDatasetWithMl(records);
+
+    return res.json({
+      success: true,
+      persisted_records: records.length,
+      mlSync
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      code: 'ANNOTATION_SYNC_ERROR',
+      error: err.message
+    });
+  }
+});
+
+/**
+ * Retrieve Server-Persisted Annotations
+ * GET /api/annotations
+ */
+app.get('/api/annotations', (req, res) => {
+  try {
+    const annotationsPath = path.join(__dirname, 'data', 'human_annotations.json');
+    if (fs.existsSync(annotationsPath)) {
+      const data = JSON.parse(fs.readFileSync(annotationsPath, 'utf-8'));
+      return res.json({ success: true, records: data });
+    }
+    return res.json({ success: true, records: [] });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Supervised Training Endpoints
+ * POST /api/ml/train
+ * Body: { model: 'svm' | 'roberta' }
+ */
+app.post('/api/ml/train', async (req, res) => {
+  try {
+    const { model = 'svm' } = req.body || {};
+    let trainResult;
+    if (model === 'svm') {
+      trainResult = await trainSvm();
+    } else if (model === 'roberta') {
+      trainResult = await trainRoberta();
+    } else {
+      return res.status(400).json({ success: false, error: "Invalid model arm. Must be 'svm' or 'roberta'." });
+    }
+    return res.json(trainResult);
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Unified Multi-Model Classification Endpoint
+ * POST /api/ml/classify-all
+ * Body: { text: string, k?: number }
+ * Runs all active formal arms (SVM, RoBERTa, Gemini) for side-by-side benchmarking.
+ */
+app.post('/api/ml/classify-all', async (req, res) => {
+  try {
+    const { text, k = 0 } = req.body || {};
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ success: false, error: 'Feedback text is required' });
+    }
+
+    const cleanText = text.trim();
+
+    // 1. Arm 1 (SVM) & Arm 2 (RoBERTa) via Python ML
+    let mlResults = { svm: null, roberta: null };
+    try {
+      mlResults = await classifyAllModels(cleanText);
+    } catch (mlErr) {
+      mlResults = {
+        svm: { status: 'error', errorMessage: mlErr.message },
+        roberta: { status: 'error', errorMessage: mlErr.message }
+      };
+    }
+
+    // 2. Arm 3: Gemini AI (if configured)
+    let geminiResult = null;
+    if (isGeminiConfigured()) {
+      try {
+        geminiResult = await classifyWithGemini(cleanText, { k: Number(k) });
+      } catch (gemErr) {
+        geminiResult = {
+          status: 'error',
+          errorMessage: gemErr.message || 'Gemini inference failed'
+        };
+      }
+    } else {
+      geminiResult = {
+        status: 'error',
+        errorMessage: 'Gemini API key is not configured on the server.'
+      };
+    }
+
+    return res.json({
+      success: true,
+      text: cleanText,
+      results: {
+        svm: mlResults.svm,
+        roberta: mlResults.roberta,
+        gemini: geminiResult
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 /**

@@ -48,6 +48,8 @@ Extract verbatim short evidence from the input sentence. Provide a concise scien
 
 // Approved Few-Shot Exemplars drawn strictly from the training partition
 // (Zero exemplars are taken from test partitions to preserve experimental validity)
+export const TAXONOMY_CATEGORIES = ['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'];
+
 export const FEW_SHOT_EXEMPLARS = {
   EXPLICIT_NEED: [
     {
@@ -220,29 +222,69 @@ export const FEW_SHOT_EXEMPLARS = {
 };
 
 /**
- * Builds the full context prompt for Gemini given sentence and few-shot k parameter
- * k in {0, 2, 4, 8} (where k represents total exemplars or k per class)
- * In our benchmark: k is in {0, 2, 4, 8} exemplars total / balanced across categories.
+ * Calculates exemplar availability across taxonomy categories for a target k (per class).
+ * Per manuscript: k in {0, 2, 4, 8} per class (totals: 0, 8, 16, 32).
  */
-/**
- * Builds the full context prompt for Gemini given sentence and few-shot k parameter
- * Supported benchmark arms: k in {0, 2, 4, 8}
- * - k=0: Zero-shot classification (no exemplars)
- * - k=2: Two contrasting exemplars (1 EXPLICIT_NEED, 1 PAIN_POINT)
- * - k=4: Four exemplars (1 balanced exemplar across all 4 categories)
- * - k=8: Eight exemplars (2 balanced exemplars across all 4 categories)
- */
-export function buildPromptWithExemplars(text, k = 0) {
-  let promptText = `Analyze the following customer feedback sentence:\n\n"${text.trim()}"\n\n`;
+export function getFewShotExemplarStatus(k = 0, customPool = null) {
+  const numericK = Number(k);
+  const targetK = isNaN(numericK) || numericK <= 0 ? 0 : [2, 4, 8].find(v => v === numericK) || 0;
+  const pool = customPool || FEW_SHOT_EXEMPLARS;
 
-  // Normalize numeric k; invalid or non-positive values safely default to k=0
+  const totalRequested = targetK * 4;
+  let totalAvailable = 0;
+  const perCategory = {};
+
+  TAXONOMY_CATEGORIES.forEach(cat => {
+    const list = pool[cat] || [];
+    const availableCount = list.length;
+    const includedCount = Math.min(targetK, availableCount);
+    totalAvailable += includedCount;
+    perCategory[cat] = {
+      requested: targetK,
+      available: availableCount,
+      included: includedCount,
+      missing: Math.max(0, targetK - availableCount)
+    };
+  });
+
+  const missingCount = Math.max(0, totalRequested - totalAvailable);
+
+  return {
+    k: targetK,
+    total_requested: totalRequested,
+    total_available: totalAvailable,
+    missing_count: missingCount,
+    is_sufficient: missingCount === 0,
+    per_category: perCategory
+  };
+}
+
+/**
+ * Builds the full context prompt for Gemini given sentence and few-shot k parameter.
+ * Methodology per manuscript Section IV-B:
+ * k is the number of exemplars per category across the 4-class taxonomy:
+ * - k=0: Zero-shot classification (0 total exemplars)
+ * - k=2: 2 exemplars per class (8 total exemplars)
+ * - k=4: 4 exemplars per class (16 total exemplars)
+ * - k=8: 8 exemplars per class (32 total exemplars)
+ *
+ * Training split integrity:
+ * - Only authentic adjudicated training split examples are used.
+ * - If the training pool contains fewer than k exemplars for any class, all available
+ *   adjudicated examples are provided and the shortfall is clearly reported in metadata.
+ * - Test/validation examples and the target input sentence are never used as demonstrations.
+ */
+export function buildPromptWithExemplars(text, k = 0, options = {}) {
+  const cleanTarget = (text || '').trim();
+  let promptText = `Analyze the following customer feedback sentence:\n\n"${cleanTarget}"\n\n`;
+
   const numericK = Number(k);
   if (isNaN(numericK) || numericK <= 0) {
     promptText += `Classify the sentence under the four-class taxonomy and sentiment dimensions.\n`;
     return promptText;
   }
 
-  // Resolve to supported benchmark arms {2, 4, 8}; values between are clamped safely
+  // Resolve target k to supported benchmark arms {2, 4, 8}
   let benchmarkK = 0;
   if (numericK >= 8) {
     benchmarkK = 8;
@@ -251,28 +293,28 @@ export function buildPromptWithExemplars(text, k = 0) {
   } else if (numericK >= 2) {
     benchmarkK = 2;
   } else {
-    // 0 < k < 2 defaults safely to zero-shot (k=0)
     promptText += `Classify the sentence under the four-class taxonomy and sentiment dimensions.\n`;
     return promptText;
   }
 
-  promptText += `Here are illustrative reference examples from our training benchmark:\n\n`;
-  const categories = ['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'];
+  const pool = options.customPool || FEW_SHOT_EXEMPLARS;
+  const status = getFewShotExemplarStatus(benchmarkK, pool);
+
+  promptText += `Here are illustrative reference examples drawn strictly from our human-adjudicated training benchmark (${benchmarkK} per class requested, total requested: ${status.total_requested}):\n\n`;
+
+  if (!status.is_sufficient) {
+    promptText += `[Notice: Training partition currently provides ${status.total_available}/${status.total_requested} eligible exemplars. ${status.missing_count} exemplars are pending further human adjudication across categories. No synthetic examples have been fabricated.]\n\n`;
+  }
+
   const selectedExamples = [];
 
-  if (benchmarkK === 2) {
-    // Exactly 2 exemplars: 1 EXPLICIT_NEED and 1 PAIN_POINT for sharp boundary definition
-    selectedExamples.push({ cat: 'EXPLICIT_NEED', ex: FEW_SHOT_EXEMPLARS.EXPLICIT_NEED[0], num: 1 });
-    selectedExamples.push({ cat: 'PAIN_POINT', ex: FEW_SHOT_EXEMPLARS.PAIN_POINT[0], num: 1 });
-  } else {
-    const perCategory = benchmarkK === 8 ? 2 : 1;
-    categories.forEach(cat => {
-      const examples = FEW_SHOT_EXEMPLARS[cat].slice(0, perCategory);
-      examples.forEach((ex, idx) => {
-        selectedExamples.push({ cat, ex, num: idx + 1 });
-      });
-    });
-  }
+  TAXONOMY_CATEGORIES.forEach(cat => {
+    const list = (pool[cat] || []).filter(ex => ex.text.trim().toLowerCase() !== cleanTarget.toLowerCase());
+    const countToTake = Math.min(benchmarkK, list.length);
+    for (let i = 0; i < countToTake; i++) {
+      selectedExamples.push({ cat, ex: list[i], num: i + 1 });
+    }
+  });
 
   selectedExamples.forEach(({ cat, ex, num }) => {
     promptText += `[Example ${cat} #${num}]\n`;

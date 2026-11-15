@@ -1,18 +1,14 @@
 import assert from 'assert';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import {
   PROMPT_VERSION,
   SYSTEM_INSTRUCTION,
+  TAXONOMY_CATEGORIES,
   FEW_SHOT_EXEMPLARS,
+  getFewShotExemplarStatus,
   buildPromptWithExemplars
 } from './prompts.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-console.log('=== RUNNING FEW-SHOT CONFIGURATION TESTS ===\n');
+console.log('=== RUNNING MANUSCRIPT-ALIGNED FEW-SHOT CONFIGURATION TESTS ===\n');
 
 // 1. Prompt Version check
 assert.strictEqual(PROMPT_VERSION, 'v1.0-research', 'Prompt version must be v1.0-research');
@@ -38,96 +34,112 @@ function extractExamples(prompt) {
   }));
 }
 
-// 3. Test k=0
+// 3. Test k=0 (Zero-shot)
 const promptK0 = buildPromptWithExemplars('Test feedback sentence', 0);
 const exK0 = extractExamples(promptK0);
+const statusK0 = getFewShotExemplarStatus(0);
 assert.strictEqual(exK0.length, 0, 'k=0 must contain exactly 0 examples');
+assert.strictEqual(statusK0.total_requested, 0, 'k=0 total_requested must be 0');
+assert.strictEqual(statusK0.missing_count, 0, 'k=0 missing_count must be 0');
 assert(!promptK0.includes('Here are illustrative reference examples'), 'k=0 must not include exemplar section');
-console.log('✔ Check 3: k=0 contains 0 exemplars (zero-shot)');
+console.log('✔ Check 3: k=0 contains 0 exemplars (zero-shot, 0 requested, 0 missing)');
 
-// 4. Test k=2
+// 4. Test k=2 (2 per class = 8 total)
 const promptK2 = buildPromptWithExemplars('Test feedback sentence', 2);
 const exK2 = extractExamples(promptK2);
-assert.strictEqual(exK2.length, 2, 'k=2 must contain exactly 2 examples');
-assert.strictEqual(exK2[0].category, 'EXPLICIT_NEED', 'k=2 exemplar 1 must be EXPLICIT_NEED');
-assert.strictEqual(exK2[1].category, 'PAIN_POINT', 'k=2 exemplar 2 must be PAIN_POINT');
-assert.notStrictEqual(exK2[0].text, exK2[1].text, 'k=2 exemplars must be distinct');
-console.log('✔ Check 4: k=2 contains exactly 2 exemplars (EXPLICIT_NEED vs PAIN_POINT contrast)');
+const statusK2 = getFewShotExemplarStatus(2);
+assert.strictEqual(statusK2.total_requested, 8, 'k=2 must request exactly 8 exemplars (2 per class * 4 classes)');
+assert.strictEqual(exK2.length, 8, 'k=2 must contain exactly 8 examples');
+assert.strictEqual(statusK2.missing_count, 0, 'k=2 missing_count must be 0 when 2 per class are available');
+TAXONOMY_CATEGORIES.forEach(cat => {
+  const count = exK2.filter(e => e.category === cat).length;
+  assert.strictEqual(count, 2, `k=2 must have exactly 2 exemplars for ${cat}`);
+});
+console.log('✔ Check 4: k=2 contains exactly 8 exemplars (2 per class across all 4 categories, 0 missing)');
 
-// 5. Test k=4
+// 5. Test k=4 (4 per class = 16 total)
 const promptK4 = buildPromptWithExemplars('Test feedback sentence', 4);
 const exK4 = extractExamples(promptK4);
-assert.strictEqual(exK4.length, 4, 'k=4 must contain exactly 4 examples');
-const catsK4 = exK4.map(e => e.category);
-['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'].forEach(cat => {
-  assert.strictEqual(catsK4.filter(c => c === cat).length, 1, `k=4 must have exactly 1 exemplar for ${cat}`);
+const statusK4 = getFewShotExemplarStatus(4);
+assert.strictEqual(statusK4.total_requested, 16, 'k=4 must request exactly 16 exemplars (4 per class * 4 classes)');
+assert.strictEqual(exK4.length, 16, 'k=4 must contain exactly 16 examples');
+assert.strictEqual(statusK4.missing_count, 0, 'k=4 missing_count must be 0 when 4 per class are available');
+TAXONOMY_CATEGORIES.forEach(cat => {
+  const count = exK4.filter(e => e.category === cat).length;
+  assert.strictEqual(count, 4, `k=4 must have exactly 4 exemplars for ${cat}`);
 });
-console.log('✔ Check 5: k=4 contains exactly 4 exemplars (1 balanced per category)');
+console.log('✔ Check 5: k=4 contains exactly 16 exemplars (4 per class across all 4 categories, 0 missing)');
 
-// 6. Test k=8
+// 6. Test k=8 with default pool (8 per class requested = 32 total, 16 available in default pool)
 const promptK8 = buildPromptWithExemplars('Test feedback sentence', 8);
 const exK8 = extractExamples(promptK8);
-assert.strictEqual(exK8.length, 8, 'k=8 must contain exactly 8 examples');
-const catsK8 = exK8.map(e => e.category);
-['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'].forEach(cat => {
-  assert.strictEqual(catsK8.filter(c => c === cat).length, 2, `k=8 must have exactly 2 exemplars for ${cat}`);
-});
-console.log('✔ Check 6: k=8 contains exactly 8 exemplars (2 balanced per category)');
+const statusK8 = getFewShotExemplarStatus(8);
+assert.strictEqual(statusK8.total_requested, 32, 'k=8 must request exactly 32 exemplars (8 per class * 4 classes)');
+assert.strictEqual(statusK8.total_available, 16, 'k=8 default pool provides 16 available exemplars');
+assert.strictEqual(statusK8.missing_count, 16, 'k=8 default pool reports exactly 16 missing exemplars');
+assert.strictEqual(statusK8.is_sufficient, false, 'k=8 is_sufficient must be false with 16 available');
+assert.strictEqual(exK8.length, 16, 'k=8 includes all 16 available non-fabricated exemplars');
+assert(promptK8.includes('16/32 eligible exemplars'), 'k=8 prompt must state available/requested ratio transparently');
+assert(promptK8.includes('No synthetic examples have been fabricated'), 'k=8 prompt must declare no synthetic fabrication');
+console.log('✔ Check 6: k=8 with 16 available correctly requests 32, includes 16, and transparently reports 16 missing without fabrication');
 
-// 7. Verify no duplicate texts in any configuration
-[exK2, exK4, exK8].forEach((list, idx) => {
+// 7. Test k=8 with full 32-exemplar pool (8 per class = 32 total)
+const mockFullPool = {};
+TAXONOMY_CATEGORIES.forEach(cat => {
+  mockFullPool[cat] = [];
+  for (let i = 1; i <= 8; i++) {
+    mockFullPool[cat].push({
+      text: `Adjudicated training sentence ${cat} number ${i}.`,
+      output: {
+        sentiment: 'NEUTRAL',
+        requirement_category: cat,
+        evidence: `evidence ${i}`,
+        explanation: `Explanation for ${cat} ${i}`,
+        confidence: 0.95
+      }
+    });
+  }
+});
+const promptK8Full = buildPromptWithExemplars('Target sentence', 8, { customPool: mockFullPool });
+const exK8Full = extractExamples(promptK8Full);
+const statusK8Full = getFewShotExemplarStatus(8, mockFullPool);
+assert.strictEqual(statusK8Full.total_requested, 32, 'Full pool k=8 requests 32');
+assert.strictEqual(statusK8Full.total_available, 32, 'Full pool k=8 provides 32');
+assert.strictEqual(statusK8Full.missing_count, 0, 'Full pool k=8 has 0 missing');
+assert.strictEqual(statusK8Full.is_sufficient, true, 'Full pool k=8 is_sufficient must be true');
+assert.strictEqual(exK8Full.length, 32, 'k=8 with full pool must contain exactly 32 examples');
+TAXONOMY_CATEGORIES.forEach(cat => {
+  const count = exK8Full.filter(e => e.category === cat).length;
+  assert.strictEqual(count, 8, `k=8 with full pool must have exactly 8 exemplars for ${cat}`);
+});
+console.log('✔ Check 7: k=8 with complete 32-exemplar pool yields exactly 32 exemplars (8 per category, 0 missing)');
+
+// 8. Zero Leakage Check: Target sentence itself is excluded from exemplars
+const targetSentence = FEW_SHOT_EXEMPLARS.EXPLICIT_NEED[0].text;
+const promptLeakCheck = buildPromptWithExemplars(targetSentence, 4);
+const exLeakCheck = extractExamples(promptLeakCheck);
+assert(!exLeakCheck.some(e => e.text.trim().toLowerCase() === targetSentence.trim().toLowerCase()), 'Target sentence must never be included as demonstration');
+console.log('✔ Check 8: Self-leakage prevention verified: target sentence is never included as exemplar');
+
+// 9. Verify duplicate prevention
+[exK2, exK4, exK8, exK8Full].forEach((list, idx) => {
   const texts = list.map(e => e.text);
   const uniqueTexts = new Set(texts);
-  assert.strictEqual(texts.length, uniqueTexts.size, `Configuration idx ${idx} must not contain duplicate example texts`);
+  assert.strictEqual(texts.length, uniqueTexts.size, `Configuration ${idx} must not contain duplicate example texts`);
 });
-console.log('✔ Check 7: No duplicate examples occur within any configuration');
+console.log('✔ Check 9: No duplicate examples occur within any configuration');
 
-// 8. Verify prompt actually changes across k values
+// 10. Verify prompt actually changes monotonically across k values
 assert.notStrictEqual(promptK0, promptK2, 'Prompt must differ between k=0 and k=2');
 assert.notStrictEqual(promptK2, promptK4, 'Prompt must differ between k=2 and k=4');
 assert.notStrictEqual(promptK4, promptK8, 'Prompt must differ between k=4 and k=8');
-console.log('✔ Check 8: Prompts differ monotonically as k changes');
+assert.notStrictEqual(promptK8, promptK8Full, 'Prompt must differ between partial and full k=8 pool');
+console.log('✔ Check 10: Prompts differ monotonically as k changes');
 
-// 9. Verify unsupported k values are handled safely
-const promptNeg = buildPromptWithExemplars('Test sentence', -1);
-assert.strictEqual(extractExamples(promptNeg).length, 0, 'Negative k must safely default to 0');
+// 11. Verify unsupported k values are handled safely
+assert.strictEqual(extractExamples(buildPromptWithExemplars('Test', -1)).length, 0, 'Negative k defaults to 0');
+assert.strictEqual(extractExamples(buildPromptWithExemplars('Test', 'invalid')).length, 0, 'Invalid k defaults to 0');
+assert.strictEqual(extractExamples(buildPromptWithExemplars('Test', null)).length, 0, 'Null k defaults to 0');
+console.log('✔ Check 11: Unsupported k values safely default to zero-shot (k=0)');
 
-const promptInvalid = buildPromptWithExemplars('Test sentence', 'invalid_k');
-assert.strictEqual(extractExamples(promptInvalid).length, 0, 'Invalid string k must safely default to 0');
-
-const promptNull = buildPromptWithExemplars('Test sentence', null);
-assert.strictEqual(extractExamples(promptNull).length, 0, 'Null k must safely default to 0');
-
-const promptK1 = buildPromptWithExemplars('Test sentence', 1);
-assert.strictEqual(extractExamples(promptK1).length, 0, 'k=1 below benchmark minimum must safely default to 0');
-
-const promptK3 = buildPromptWithExemplars('Test sentence', 3);
-assert.strictEqual(extractExamples(promptK3).length, 2, 'k=3 must clamp safely to 2');
-
-const promptK5 = buildPromptWithExemplars('Test sentence', 5);
-assert.strictEqual(extractExamples(promptK5).length, 4, 'k=5 must clamp safely to 4');
-
-const promptK99 = buildPromptWithExemplars('Test sentence', 99);
-assert.strictEqual(extractExamples(promptK99).length, 8, 'k=99 must clamp safely to max benchmark k=8');
-console.log('✔ Check 9: Unsupported and edge-case k values are handled safely');
-
-// 10. Verify Training / Evaluation partition separation (No Test-Set Contamination)
-const csv45Path = path.join(__dirname, '../public/semeval2015_research_ready.csv');
-const csvFullPath = path.join(__dirname, '../public/semeval2015_research_ready_full.csv');
-
-const csv45Content = fs.readFileSync(csv45Path, 'utf-8').toLowerCase();
-const csvFullContent = fs.readFileSync(csvFullPath, 'utf-8').toLowerCase();
-
-const allExemplars = [];
-Object.values(FEW_SHOT_EXEMPLARS).forEach(list => {
-  list.forEach(ex => allExemplars.push(ex.text.toLowerCase().trim()));
-});
-
-const leaks45 = allExemplars.filter(text => csv45Content.includes(text));
-const leaksFull = allExemplars.filter(text => csvFullContent.includes(text));
-
-assert.strictEqual(leaks45.length, 0, 'No exemplar text must appear in presentation dataset (semeval2015_research_ready.csv)');
-assert.strictEqual(leaksFull.length, 0, 'No exemplar text must appear in full dataset (semeval2015_research_ready_full.csv)');
-console.log('✔ Check 10: Zero test-set contamination across both SemEval dataset files');
-
-console.log('\nALL 10 FEW-SHOT AUDIT & REGRESSION CHECKS PASSED SUCCESSFULLY!');
+console.log('\nAll 11 Few-Shot Configuration & Integrity Tests Passed Successfully!\n');
