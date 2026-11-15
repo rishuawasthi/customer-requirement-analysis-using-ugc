@@ -89,7 +89,8 @@ def main():
         save_target = EXPLORATORY_DATA_PATH if args.mode == 'exploratory' else DEFAULT_DATA_PATH
         save_path = save_adjudicated_data(records, path=save_target)
         stats = get_dataset_statistics(records, mode=args.mode)
-        split_res = generate_split_manifests(records)
+        manifest_dir = DATA_DIR if args.mode == 'gold' else EXPLORATORY_MANIFEST_DIR
+        split_res = generate_split_manifests(records, output_dir=manifest_dir)
         output = {
             "success": True,
             "saved_records": len(records),
