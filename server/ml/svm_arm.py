@@ -271,7 +271,8 @@ class SvmClassifierArm:
 
     def classify(self, text: str) -> Dict[str, Any]:
         """Classifies an input text using the trained Linear SVM."""
-        if not self.is_loaded or self.model is None or self.vectorizer is None:
+        if (not self.is_loaded or self.model is None or self.vectorizer is None
+                or not self.metadata or self.metadata.get('mode') != 'gold'):
             return {
                 'requirement_category': 'NON_ACTIONABLE',
                 'category': 'NON_ACTIONABLE',
@@ -327,7 +328,7 @@ class SvmClassifierArm:
             'model': 'LinearSVC (Unigram+Bigram TF-IDF)',
             'method': 'Traditional ML (TF-IDF + Linear SVM)',
             'status': 'success',
-            'explanation': f"Classified by Linear SVM; displayed score is a softmax-transformed decision margin, not a calibrated probability ( {round(confidence * 100, 1)}%).",
+            'explanation': f"Classified by Linear SVM; displayed score is a softmax-transformed decision margin, not a calibrated probability ({round(confidence * 100, 1)}%).",
             'per_class_scores': scores_dict,
             'decision_scores': scores_dict,
             'latencyMs': elapsed_ms
