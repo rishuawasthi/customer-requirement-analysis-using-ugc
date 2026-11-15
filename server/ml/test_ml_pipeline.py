@@ -1,4 +1,4 @@
-""""
+"""
 Unit and Integration Tests for Python ML Pipeline
 Tests:
 1. Review ID-based split determinism and zero data leakage
@@ -236,8 +236,7 @@ class TestMlPipeline(unittest.TestCase):
                     'exploratoryLabel': category
                 })
         with tempfile.TemporaryDirectory() as temp_root:
-            with patch('server.ml.svm_arm.ARTIFACT_ROOT', temp_root), \\
-                 patch('server.ml.svm_arm.ARTIFACT_DIR', temp_root):
+            with patch('server.ml.svm_arm.ARTIFACT_ROOT', temp_root), patch('server.ml.svm_arm.ARTIFACT_DIR', temp_root):
                 arm = SvmClassifierArm()
                 gold_result = arm.train(records, mode='gold')
                 self.assertTrue(gold_result['success'], gold_result)
