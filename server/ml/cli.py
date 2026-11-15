@@ -53,9 +53,13 @@ def main():
     dataset_path = args.data_file or (EXPLORATORY_DATA_PATH if args.mode == 'exploratory' else DEFAULT_DATA_PATH)
 
     if args.action == "status":
-        records = load_adjudicated_data(dataset_path)
-        stats_gold = get_dataset_statistics(records, mode='gold')
-        stats_exploratory = get_dataset_statistics(records, mode='exploratory')
+        gold_records = load_adjudicated_data(args.data_file or DEFAULT_DATA_PATH)
+        exploratory_records = load_adjudicated_data(
+            args.data_file if args.data_file else EXPLORATORY_DATA_PATH
+        )
+        records = exploratory_records if args.mode == 'exploratory' else gold_records
+        stats_gold = get_dataset_statistics(gold_records, mode='gold')
+        stats_exploratory = get_dataset_statistics(exploratory_records, mode='exploratory')
         output = {
             "status": "ok",
             "mode": args.mode,
@@ -118,7 +122,7 @@ def main():
         print(json.dumps(res, indent=2))
 
     elif args.action == "train-roberta":
-        records = load_adjudicated_data(args.data_file or None)
+        records = load_adjudicated_data(dataset_path)
         res = roberta_arm.train(records, mode=args.mode)
         print(json.dumps(res, indent=2))
 
@@ -127,8 +131,12 @@ def main():
         output = {
             "mode": args.mode,
             "test_sample_count": len(test_records),
-            "svm": svm_arm.get_status(mode=args.mode).get("evaluation"),
-            "roberta": roberta_arm.get_status(mode=args.mode).get("evaluation")
+            "svm": svm_arm.get_status(
+                load_adjudicated_data(dataset_path), mode=args.mode
+            ).get("evaluation"),
+            "roberta": roberta_arm.get_status(
+                load_adjudicated_data(dataset_path), mode=args.mode
+            ).get("evaluation")
         }
         print(json.dumps(output, indent=2))
 
