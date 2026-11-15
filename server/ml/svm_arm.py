@@ -31,10 +31,24 @@ from .evaluation import (
     extract_error_analysis
 )
 
-ARTIFACT_DIR = os.path.join(os.path.dirname(__file__), 'artifacts')
+ARTIFACT_ROOT = os.path.join(os.path.dirname(__file__), 'artifacts')
+# Preserve the historical gold-mode location for backwards compatibility.
+ARTIFACT_DIR = ARTIFACT_ROOT
 MODEL_PATH = os.path.join(ARTIFACT_DIR, 'svm_model.joblib')
 METADATA_PATH = os.path.join(ARTIFACT_DIR, 'svm_metadata.json')
 EVAL_PATH = os.path.join(ARTIFACT_DIR, 'svm_evaluation.json')
+
+
+def _paths_for_mode(mode: str) -> Dict[str, str]:
+    if mode not in ('gold', 'exploratory'):
+        raise ValueError("mode must be 'gold' or 'exploratory'")
+    artifact_dir = ARTIFACT_DIR if mode == 'gold' else os.path.join(ARTIFACT_ROOT, 'svm_exploratory')
+    return {
+        'artifact_dir': artifact_dir,
+        'model': os.path.join(artifact_dir, 'svm_model.joblib'),
+        'metadata': os.path.join(artifact_dir, 'svm_metadata.json'),
+        'evaluation': os.path.join(artifact_dir, 'svm_evaluation.json')
+    }
 
 
 class SvmClassifierArm:
@@ -46,42 +60,54 @@ class SvmClassifierArm:
         self._load_artifact()
 
     def _load_artifact(self):
-        if os.path.exists(MODEL_PATH):
-            try:
-                bundle = joblib.load(MODEL_PATH)
-                self.vectorizer = bundle.get('vectorizer')
-                self.model = bundle.get('model')
-                self.metadata = bundle.get('metadata', {})
-                self.is_loaded = True
-            except Exception as e:
-                print(f"[SVM Arm] Warning: Failed to load model artifact: {e}")
-                self.is_loaded = False
+        """Load only the formal gold-mode artifact into the live inference instance."""
+        paths = _paths_for_mode('gold')
+        if not os.path.exists(paths['model']):
+            return
+        try:
+            bundle = joblib.load(paths['model'])
+            metadata = bundle.get('metadata') or {}
+            if metadata.get('mode') != 'gold':
+                return
+            self.vectorizer = bundle.get('vectorizer')
+            self.model = bundle.get('model')
+            self.metadata = metadata
+            self.is_loaded = self.model is not None and self.vectorizer is not None
+        except Exception as e:
+            print(f"[SVM Arm] Warning: Failed to load gold artifact: {e}")
+            self.is_loaded = False
 
     def get_status(self, records: Optional[List[Dict[str, Any]]] = None, mode: str = 'gold') -> Dict[str, Any]:
-        """Reports model artifact readiness, evaluation status, and training eligibility."""
+        """Reports status and evaluation for the requested artifact mode."""
+        paths = _paths_for_mode(mode)
         stats = get_dataset_statistics(records if records is not None else load_adjudicated_data(), mode=mode)
+        metadata = None
         eval_data = None
-        if os.path.exists(EVAL_PATH):
+        if os.path.exists(paths['metadata']):
             try:
-                with open(EVAL_PATH, 'r', encoding='utf-8') as f:
+                with open(paths['metadata'], 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+            except Exception:
+                metadata = None
+        if os.path.exists(paths['evaluation']):
+            try:
+                with open(paths['evaluation'], 'r', encoding='utf-8') as f:
                     eval_data = json.load(f)
             except Exception:
                 eval_data = None
 
-        # Never expose exploratory metrics in the formal gold-mode view (or vice versa).
+        trained = bool(metadata and metadata.get('mode') == mode and os.path.isfile(paths['model']))
         if eval_data and eval_data.get('mode') != mode:
             eval_data = None
 
-        metadata_matches_mode = bool(self.metadata and self.metadata.get('mode') == mode)
-
         return {
             'model_name': 'LinearSVC (Unigram+Bigram TF-IDF)',
-            'status': 'trained' if self.is_loaded and metadata_matches_mode else 'awaiting_data',
-            'is_trained': self.is_loaded and metadata_matches_mode,
-            'artifact_path': MODEL_PATH if self.is_loaded and metadata_matches_mode else None,
-            'training_metadata': self.metadata if metadata_matches_mode else None,
+            'status': 'trained' if trained else 'awaiting_data',
+            'is_trained': trained,
+            'artifact_path': paths['artifact_dir'] if trained else None,
+            'training_metadata': metadata if trained else None,
             'dataset_status': stats,
-            'evaluation': eval_data
+            'evaluation': eval_data if trained else None
         }
 
     def train(self, records: List[Dict[str, Any]], mode: str = 'gold') -> Dict[str, Any]:
@@ -90,6 +116,9 @@ class SvmClassifierArm:
         In mode='gold': requires adjudicated human labels.
         In mode='exploratory': uses weak/exploratory labels.
         """
+        if mode not in ('gold', 'exploratory'):
+            return {'success': False, 'status': 'invalid_mode', 'message': "mode must be 'gold' or 'exploratory'"}
+
         stats = get_dataset_statistics(records, mode=mode)
         eligibility = stats['training_eligibility']
 
@@ -124,10 +153,11 @@ class SvmClassifierArm:
                 if label not in TAXONOMY_CATEGORIES:
                     label = None
 
-            if label:
+            clean_text = str(r.get('text') or '').strip()
+            if label and clean_text:
                 usable_records.append({
                     'id': r.get('id'),
-                    'text': r.get('text', '').strip(),
+                    'text': clean_text,
                     'review_id': r.get('reviewId') or r.get('review_id') or r.get('id'),
                     'label': label
                 })
@@ -136,6 +166,18 @@ class SvmClassifierArm:
         train_data = splits['train']
         val_data = splits['val']
         test_data = splits['test']
+
+        if not train_data or not val_data or not test_data:
+            return {
+                'success': False,
+                'status': 'invalid_split',
+                'message': (
+                    'SVM training requires non-empty train, validation, and test partitions. '
+                    f"Observed counts: train={len(train_data)}, val={len(val_data)}, "
+                    f"test={len(test_data)}. Add more independently labelled reviews."
+                ),
+                'split_counts': {name: len(data) for name, data in splits.items()}
+            }
 
         X_train = [r['text'] for r in train_data]
         y_train = [r['label'] for r in train_data]
@@ -186,7 +228,8 @@ class SvmClassifierArm:
             confusion = compute_confusion_matrix_data(y_test, y_test_pred)
             bootstrap_ci = bootstrap_macro_f1_ci(y_test, y_test_pred)
 
-        os.makedirs(ARTIFACT_DIR, exist_ok=True)
+        paths = _paths_for_mode(mode)
+        os.makedirs(paths['artifact_dir'], exist_ok=True)
         metadata = {
             'trained_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
             'train_duration_sec': round(train_duration, 4),
@@ -206,9 +249,9 @@ class SvmClassifierArm:
             'model': clf,
             'metadata': metadata
         }
-        joblib.dump(bundle, MODEL_PATH)
+        joblib.dump(bundle, paths['model'])
 
-        with open(METADATA_PATH, 'w', encoding='utf-8') as f:
+        with open(paths['metadata'], 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2)
 
         # Save evaluation report
@@ -220,13 +263,15 @@ class SvmClassifierArm:
             'confusion_matrix': confusion,
             'val_metrics': val_metrics
         }
-        with open(EVAL_PATH, 'w', encoding='utf-8') as f:
+        with open(paths['evaluation'], 'w', encoding='utf-8') as f:
             json.dump(eval_report, f, indent=2)
 
-        self.model = clf
-        self.vectorizer = vectorizer
-        self.metadata = metadata
-        self.is_loaded = True
+        # Exploratory training must never replace the live gold inference model.
+        if mode == 'gold':
+            self.model = clf
+            self.vectorizer = vectorizer
+            self.metadata = metadata
+            self.is_loaded = True
 
         return {
             'success': True,
