@@ -132,7 +132,7 @@ export default function App() {
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} recordCount={records.length}
         classifiedCount={classifiedCount} annotatedCount={annotatedPairCount}
         sourceName={sourceName} onQuickSwitchDataset={handleQuickSwitchDataset}/>
-      <main className="min-h-screen ml-0 lg:ml-[248px] px-4 sm:px-6 xl:px-8 py-6 max-w-[1800px]">
+      <main className="min-h-screen ml-0 lg:ml-[248px] px-4 sm:px-6 xl:px-8 pt-[94px] pb-24 lg:pb-6 max-w-[1800px]">
         {isAutoLoading && records.length === 0 ? (
           <div className="flex items-center justify-center p-12 text-slate-500 text-sm">Loading SemEval dataset…</div>
         ) : (
