@@ -42,13 +42,20 @@ export function exportAnalyzedRecordsToCSV(
       r =>
         r.predictedCategory === 'EXPLICIT_NEED' ||
         r.predictedCategory === 'IMPLICIT_NEED' ||
-        r.predictedCategory === 'PAIN_POINT'
+        r.predictedCategory === 'PAIN_POINT' ||
+        r.geminiResult?.requirement_category === 'EXPLICIT_NEED' ||
+        r.geminiResult?.requirement_category === 'IMPLICIT_NEED' ||
+        r.geminiResult?.requirement_category === 'PAIN_POINT'
     );
   } else if (options.filterCategory && options.filterCategory !== 'ALL') {
     if (options.filterCategory === 'UNCLASSIFIED') {
-      exportSet = exportSet.filter(r => !r.predictedCategory);
+      exportSet = exportSet.filter(r => !r.predictedCategory && !r.geminiResult);
     } else {
-      exportSet = exportSet.filter(r => r.predictedCategory === options.filterCategory);
+      exportSet = exportSet.filter(
+        r =>
+          r.predictedCategory === options.filterCategory ||
+          r.geminiResult?.requirement_category === options.filterCategory
+      );
     }
   }
 
@@ -59,18 +66,27 @@ export function exportAnalyzedRecordsToCSV(
   });
   const metadataKeys = Array.from(metadataKeysSet);
 
-  // Define headers
+  // Define headers with complete model separation
   const baseHeaders = [
     'id',
     'review_id',
     'sentence_id',
     'domain',
     'feedback_text',
+    // 1. Rule-Based Baseline Heuristic
     'heuristic_category_prediction',
-    'category_readable_label',
-    'classification_method',
+    'heuristic_readable_label',
     'matched_linguistic_cues',
-    'explanation_and_rationale',
+    'heuristic_explanation',
+    // 2. Gemini AI Classifier
+    'gemini_sentiment_polarity',
+    'gemini_requirement_category',
+    'gemini_evidence_span',
+    'gemini_explanation',
+    'gemini_confidence_reported',
+    'gemini_model_name',
+    'gemini_few_shot_k',
+    // 3. Human Annotations
     'annotator_a_label',
     'annotator_b_label',
     'inter_annotator_agreement',
@@ -88,15 +104,19 @@ export function exportAnalyzedRecordsToCSV(
     const label = record.predictedCategory
       ? CATEGORY_DESCRIPTIONS[record.predictedCategory].label
       : 'Unclassified';
-    const method = record.isUserAnnotated
-      ? 'Manual Academic Annotation'
-      : record.predictedCategory
-      ? 'Rule-Based Linguistic Heuristic Baseline'
-      : 'Not Analyzed';
     const cues = (record.matchedCues || []).join('; ');
     const explanation = record.explanation || '';
-    const isAnnotated = record.isUserAnnotated ? 'TRUE' : 'FALSE';
 
+    // Gemini results
+    const gSentiment = record.geminiResult?.sentiment || '';
+    const gCategory = record.geminiResult?.requirement_category || '';
+    const gEvidence = record.geminiResult?.evidence || '';
+    const gExplanation = record.geminiResult?.explanation || '';
+    const gConfidence = record.geminiResult?.confidence !== undefined ? String(record.geminiResult.confidence) : '';
+    const gModel = record.geminiResult?.model || '';
+    const gK = record.geminiResult?.k !== undefined ? String(record.geminiResult.k) : '';
+
+    // Human annotations
     const annA = record.humanAnnotations?.annotatorA || '';
     const annB = record.humanAnnotations?.annotatorB || '';
     let agreement = 'INCOMPLETE';
@@ -105,6 +125,7 @@ export function exportAnalyzedRecordsToCSV(
     }
     const adjudicated = record.humanAnnotations?.adjudicated || '';
     const notes = record.humanAnnotations?.adjudicatorNotes || '';
+    const isAnnotated = record.isUserAnnotated ? 'TRUE' : 'FALSE';
 
     const rowData: string[] = [
       escapeCSVValue(record.id),
@@ -112,11 +133,20 @@ export function exportAnalyzedRecordsToCSV(
       escapeCSVValue(record.sentenceId || record.id),
       escapeCSVValue(record.domain || ''),
       escapeCSVValue(record.text),
+      // Heuristic
       escapeCSVValue(cat),
       escapeCSVValue(label),
-      escapeCSVValue(method),
       escapeCSVValue(cues),
       escapeCSVValue(explanation),
+      // Gemini
+      escapeCSVValue(gSentiment),
+      escapeCSVValue(gCategory),
+      escapeCSVValue(gEvidence),
+      escapeCSVValue(gExplanation),
+      escapeCSVValue(gConfidence),
+      escapeCSVValue(gModel),
+      escapeCSVValue(gK),
+      // Human Annotations
       escapeCSVValue(annA),
       escapeCSVValue(annB),
       escapeCSVValue(agreement),

@@ -30,6 +30,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const total = records.length;
   const classified = records.filter(r => r.predictedCategory !== undefined);
+  const geminiClassified = records.filter(r => r.geminiResult !== undefined);
   const unclassifiedCount = total - classified.length;
   const humanAnnotatedCount = records.filter(
     r => r.humanAnnotations?.annotatorA !== undefined && r.humanAnnotations?.annotatorB !== undefined
@@ -157,47 +158,58 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
       </div>
 
       {/* Primary Quantitative Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Total Records */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs">
+        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs">
           <div className="text-xs font-medium text-slate-500 mb-1">Total Loaded Rows</div>
           <div className="text-2xl font-bold text-slate-900 font-mono">{total.toLocaleString()}</div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[11px] text-slate-500 mt-1 truncate">
             {uniqueReviewsCount ? `${uniqueReviewsCount.toLocaleString()} reviews | ` : ''}
             {uniqueSentencesCount ? `${uniqueSentencesCount.toLocaleString()} sentences` : 'Current dataset rows'}
           </div>
         </div>
 
         {/* Heuristic Classified Count */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs">
-          <div className="text-xs font-medium text-slate-500 mb-1">Heuristic Predictions</div>
+        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs">
+          <div className="text-xs font-medium text-slate-500 mb-1">Heuristic Baseline</div>
           <div className="text-2xl font-bold text-blue-700 font-mono">
             {classified.length.toLocaleString()}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[11px] text-slate-500 mt-1">
             {total > 0 ? `${((classified.length / total) * 100).toFixed(0)}% rule-classified` : '0%'}
           </div>
         </div>
 
-        {/* Actionable Requirements Identified */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs">
-          <div className="text-xs font-medium text-slate-500 mb-1">Actionable Needs Flagged</div>
-          <div className="text-2xl font-bold text-emerald-700 font-mono">
-            {(categoryCounts.EXPLICIT_NEED + categoryCounts.IMPLICIT_NEED + categoryCounts.PAIN_POINT).toLocaleString()}
+        {/* Gemini AI Classified Count */}
+        <div className="bg-white p-3.5 rounded-lg border border-purple-200 bg-purple-50/20 shadow-2xs">
+          <div className="text-xs font-medium text-purple-900 mb-1">Gemini AI Classified</div>
+          <div className="text-2xl font-bold text-purple-700 font-mono">
+            {geminiClassified.length.toLocaleString()}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
-            Explicit + Implicit + Pain Points
+          <div className="text-[11px] text-purple-700 mt-1">
+            {total > 0 ? `${((geminiClassified.length / total) * 100).toFixed(0)}% AI processed` : '0%'}
           </div>
         </div>
 
-        {/* Non-Actionable Statements */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs">
-          <div className="text-xs font-medium text-slate-500 mb-1">Non-Actionable Content</div>
-          <div className="text-2xl font-bold text-slate-600 font-mono">
-            {categoryCounts.NON_ACTIONABLE.toLocaleString()}
+        {/* Actionable Requirements Identified */}
+        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs">
+          <div className="text-xs font-medium text-slate-500 mb-1">Actionable Needs</div>
+          <div className="text-2xl font-bold text-emerald-700 font-mono">
+            {(categoryCounts.EXPLICIT_NEED + categoryCounts.IMPLICIT_NEED + categoryCounts.PAIN_POINT).toLocaleString()}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
-            Praise, sentiment, or commentary
+          <div className="text-[11px] text-slate-500 mt-1">
+            Explicit + Implicit + Pain
+          </div>
+        </div>
+
+        {/* Human Double-Annotated Pairs */}
+        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs">
+          <div className="text-xs font-medium text-slate-500 mb-1">Human Double-Annotated</div>
+          <div className="text-2xl font-bold text-slate-700 font-mono">
+            {humanAnnotatedCount.toLocaleString()}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1">
+            Paired units for Alpha
           </div>
         </div>
       </div>

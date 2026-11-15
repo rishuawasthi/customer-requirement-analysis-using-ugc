@@ -4,11 +4,31 @@ export type RequirementCategory =
   | 'PAIN_POINT'
   | 'NON_ACTIONABLE';
 
+export type SentimentCategory =
+  | 'POSITIVE'
+  | 'NEGATIVE'
+  | 'NEUTRAL'
+  | 'MIXED';
+
 export interface ClassificationResult {
   category: RequirementCategory;
   explanation: string;
   matchedCues: string[];
   method: string;
+}
+
+export interface GeminiClassificationResult {
+  sentiment: SentimentCategory;
+  requirement_category: RequirementCategory;
+  evidence: string;
+  explanation: string;
+  confidence: number;
+  model: string;
+  promptVersion: string;
+  k: number;
+  timestamp: string;
+  status: 'success' | 'error';
+  errorMessage?: string;
 }
 
 export interface HumanAnnotations {
@@ -24,15 +44,23 @@ export interface FeedbackRecord {
   id: string;
   text: string;
   originalMetadata: Record<string, string>;
+  
+  // 1. Rule-Based Heuristic Baseline
   predictedCategory?: RequirementCategory;
   explanation?: string;
   matchedCues?: string[];
+  
+  // 2. Gemini AI Classifier (Independent dimensions)
+  geminiResult?: GeminiClassificationResult;
+  
+  // 3. Human Annotations (Strictly independent)
   isUserAnnotated?: boolean;
-  // Specific academic benchmark tracking fields
+  humanAnnotations?: HumanAnnotations;
+
+  // 4. Academic Dataset Metadata
   reviewId?: string;
   sentenceId?: string;
   domain?: string;
-  humanAnnotations?: HumanAnnotations;
 }
 
 export interface DatasetSummary {
@@ -72,4 +100,10 @@ export interface DatasetOption {
   domains: string[];
   description: string;
   isDefault?: boolean;
+}
+
+export interface GeminiBenchmarkConfig {
+  k: 0 | 2 | 4 | 8;
+  model: string;
+  promptVersion: string;
 }

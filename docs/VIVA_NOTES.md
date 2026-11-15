@@ -9,54 +9,72 @@
 
 ## 1. 2-Minute Elevator Pitch for Examiners
 
-> *"Good morning, respected examiners. Modern companies receive thousands of user-generated reviews, survey responses, and feedback submissions every day. Existing tools use sentiment analysis or aspect-based sentiment analysis to tell us whether a customer is happy or upset, and what feature they are talking about.*
+> *"Good morning, respected examiners. Modern software companies receive thousands of user-generated reviews, survey responses, and customer feedback submissions daily. Existing tooling relies on traditional sentiment analysis or aspect-based sentiment analysis, which only answers how a customer feels and what feature they are talking about.*
 >
 > *However, sentiment alone does NOT tell product teams and software engineers **what needs to be built, fixed, or modified**.*
 >
 > *Our project addresses this exact research gap. We designed an operational four-class taxonomy distinguishing:
-> 1. **Explicit Needs:** where a user directly requests a change ('Please add dark mode').
-> 2. **Implicit Needs:** where a need is inferable from a workaround or friction without a direct command ('The screen is too bright to read at night').
-> 3. **Pain Points:** severe dissatisfaction or crashes with no inferable desired feature ('The checkout crashes repeatedly').
+> 1. **Explicit Needs:** direct customer requests for features or fixes ('Please add dark mode').
+> 2. **Implicit Needs:** needs inferable from described workarounds or friction without a direct command ('The screen is too bright to read at night').
+> 3. **Pain Points:** acute dissatisfaction, crashes, or failures with no inferable desired feature ('The checkout crashes repeatedly').
 > 4. **Non-Actionable Content:** general praise or commentary ('Great app, five stars').*
 >
-> *We have formulated a formal experimental benchmark comparing traditional machine learning (TF-IDF + Linear SVM), fine-tuned RoBERTa, and Few-Shot LLM prompting. We implemented an interpretable linguistic heuristic baseline prototype, an independent two-annotator study framework with nominal Krippendorff's alpha, and a dynamic dataset evaluation environment using the SemEval-2015 benchmark.*
+> *Our prototype implements a **Multi-Model Architecture**:
+> - A transparent, deterministic **Rule-Based Heuristic Baseline** matching syntactic and modal cues.
+> - An advanced **Google Gemini AI Classifier** via the official `@google/genai` SDK, producing structured JSON classifying both **Sentiment** and **Requirement Category** in parallel.
+> - An **Independent Human Annotation Workbench** with live nominal Krippendorff's alpha reliability scoring.
+> - A **Dataset Switcher** supporting both our curated 45-record presentation set and the full 4,161-row SemEval benchmark.*
 >
-> *Crucially, in accordance with research integrity, we present empirical model metrics as pending until large-scale human gold-standard annotation is complete, avoiding synthetic or circular accuracy claims."*
+> *Crucially, we maintain strict scientific integrity: empirical model benchmark scores in Table VI remain marked as pending until large-scale human gold-standard annotation is finalized, avoiding synthetic or circular accuracy claims."*
 
 ---
 
-## 2. Core Viva Defense Questions & Bulletproof Answers
+## 2. Top Examiner Viva Questions & Bulletproof Answers
 
-### Q1: Why are the accuracy and Macro-F1 tables in your research paper marked as "[Pending]"?
+### Q1: Why did you integrate Google Gemini AI alongside the rule-based heuristic?
+**Examiner intent:** Testing whether you understand the multi-model comparison objective in Section I and Section III of your paper.  
+**Bulletproof Answer:**  
+*"In Section III of our manuscript, our core research question is comparing traditional methods against modern LLM prompting on identical review data. The regex heuristic serves as an interpretable, zero-cost, deterministic baseline that captures explicit syntactic cues ('please add', 'we need'). Google Gemini represents the state-of-the-art LLM arm that can comprehend complex semantic context, subtle customer workarounds, and indirect counterfactual wishes that rigid regex rules miss. The application allows examiners to compare both model outputs side by side on any review."*
+
+---
+
+### Q2: Why did you build a Node.js Express backend instead of calling Gemini directly from React?
+**Examiner intent:** Testing your understanding of software security, API key protection, and web architecture.  
+**Bulletproof Answer:**  
+*"Calling an LLM API directly from browser React code is an insecure anti-pattern: it exposes the `GEMINI_API_KEY` to any user inspecting browser network requests or client bundles. Our architecture uses a dedicated Node.js Express backend where the API key resides strictly in server environment variables. The backend provides input validation, rate-limit backoff, structured JSON response verification, and controlled concurrency for batch inference."*
+
+---
+
+### Q3: Why are Sentiment Polarity and Customer Requirement Category evaluated as two separate dimensions?
+**Examiner intent:** Checking if you understand the conceptual independence of sentiment and need.  
+**Bulletproof Answer:**  
+*"Sentiment indicates emotional tone (Positive, Negative, Neutral, Mixed), while requirement indicates actionability (Explicit Need, Implicit Need, Pain Point, Non-Actionable). They are conceptually independent:
+- 'This app is awful, please add an offline backup option' is **Negative Sentiment**, but an **Explicit Need** (direct request overrides negativity).
+- 'I have to carry three chargers because the battery doesn't last' is **Negative Sentiment**, but an **Implicit Need**.
+- 'The checkout crashed and ruined my order' is **Negative Sentiment** and a **Pain Point**.
+- 'Great service, 5 stars' is **Positive Sentiment**, but **Non-Actionable**.
+Evaluating them independently prevents conflating emotional dissatisfaction with actionable engineering requirements."*
+
+---
+
+### Q4: Why are benchmark Macro-F1 scores in Table VI marked as "[Pending]"?
 **Examiner intent:** Checking if you copied a paper or fabricated numbers.  
 **Bulletproof Answer:**  
-*"Respected examiner, we maintained strict scientific integrity throughout this research. As stated explicitly in Section I and Section X of our IEEE manuscript, our current contribution is the formal benchmark design, the operational taxonomy, and the experimental protocol. Rather than fabricating synthetic numbers or claiming an illustrative test is an empirical result, we marked all empirical metrics as pending until the pilot annotation round is complete and adjudicated. Our supervisor emphasized that scientific honesty is paramount."*
+*"We maintained strict scientific integrity throughout this research. As stated explicitly in Section I and Section X of our IEEE manuscript, our current contribution is the formal benchmark design, the operational taxonomy, and the experimental protocol. Rather than fabricating synthetic numbers or claiming an illustrative test is an empirical result, we marked all empirical metrics as pending until the pilot annotation round is complete and adjudicated."*
 
 ---
 
-### Q2: Why did you exclude "unmet need" and "emerging need" from your four-class taxonomy?
+### Q5: Why did you exclude "unmet need" and "emerging need" from your four-class taxonomy?
 **Examiner intent:** Testing whether you understand construct validity and sentence-level NLP constraints.  
 **Bulletproof Answer:**  
-*"In Section V of our paper, we deliberately excluded unmet needs and emerging needs from the sentence-level taxonomy:
+*"In Section V of our paper, we deliberately excluded unmet needs and emerging needs:
 1. **Unmet Need:** Establishing whether a need is truly unmet requires external evidence—namely, a product specification sheet or code repository to prove that the feature does not already exist. That information is external to the review sentence itself.
 2. **Emerging Need:** Establishing whether a need is emerging requires longitudinal time-series data to measure velocity or rate-of-change over weeks or months. It cannot be deduced from a single isolated sentence.
 Therefore, we restricted our sentence-level taxonomy to four intrinsic classes: Explicit Need, Implicit Need, Pain Point, and Non-Actionable."*
 
 ---
 
-### Q3: Why is sentiment analysis insufficient for requirements engineering?
-**Examiner intent:** Testing whether you understand the fundamental research gap between ABSA and Needmining.  
-**Bulletproof Answer:**  
-*"Sentiment analysis tells you emotional polarity—positive, negative, or neutral. Aspect-based sentiment analysis adds the product feature, such as 'Battery: Negative'. But a negative sentiment does not mean an explicit requirement:
-- 'The battery drains quickly' is an implicit friction (implies longer battery life).
-- 'The battery caught fire' is a severe pain point/defect.
-- 'Please provide an 8-cell battery option' is an explicit feature request.
-- 'I dislike the color' is negative sentiment, but non-actionable.
-Software engineers need actionable requirements, not just polarity scores."*
-
----
-
-### Q4: Why did you use nominal Krippendorff's alpha instead of Cohen's kappa or raw percent agreement?
+### Q6: Why did you use nominal Krippendorff's alpha instead of Cohen's kappa or raw percent agreement?
 **Examiner intent:** Testing your mathematical understanding of inter-annotator agreement.  
 **Bulletproof Answer:**  
 *"We selected nominal Krippendorff's alpha ($\alpha$) for three key reasons:
@@ -66,7 +84,7 @@ Software engineers need actionable requirements, not just polarity scores."*
 
 ---
 
-### Q5: Why didn't you train the TF-IDF + Linear SVM model on the dataset right now?
+### Q7: Why didn't you train the TF-IDF + Linear SVM model on the dataset right now?
 **Examiner intent:** Testing if you understand supervised learning requirements and circular pseudo-labeling.  
 **Bulletproof Answer:**  
 *"Supervised machine learning requires genuine, human-verified ground-truth requirement labels.
@@ -76,45 +94,39 @@ Therefore, we implemented the rule-based heuristic as the transparent baseline, 
 
 ---
 
-### Q6: How does the SemEval dataset relate to the Amazon and AWARE datasets in your paper?
-**Examiner intent:** Checking if you are claiming that SemEval represents Amazon/AWARE.  
-**Bulletproof Answer:**  
-*"In our manuscript, the proposed future experimental setup is Amazon product reviews (in-domain) and AWARE application reviews (out-of-domain). However, for our 5th-semester prototype implementation, we utilized the SemEval-2015 Task 12 benchmark, which contains two distinct real-world domains: Laptop product reviews (2,314 rows) and Restaurant service reviews (1,847 rows). This allows us to demonstrate real-world UGC ingestion, aspect analysis, and domain differences in the working application without confusing it with the pending AWARE study."*
-
----
-
 ## 3. Step-by-Step Viva Demonstration Walkthrough
 
-When the examiner asks you to demonstrate your project, follow this exact sequence:
+Follow this exact walkthrough during your viva:
 
-1. **Tab 1: Overview Dashboard**
-   - Point out the active dataset: `semeval2015_research_ready.csv` (Curated 45-Set).
-   - Show the Heuristic Predictions Distribution across the 4 classes.
-   - Point out the explicit disclaimer: *"This is a rule-based heuristic baseline, not fabricated neural network output."*
-   - Highlight the original SemEval polarity breakdown vs requirement classes.
+1. **Step 1: Start Both Servers on Windows**
+   - Terminal 1 (Backend): `npm run server` (Running on `http://localhost:5000`)
+   - Terminal 2 (Frontend): `npm run dev` (Running on `http://localhost:3000`)
 
-2. **Tab 2: Feedback Analysis (Live Tester)**
-   - Select a sentence with an explicit request: show the matched linguistic cue (e.g., `please add`, imperative verb) and explanation.
-   - Select a sentence with an implicit need: show the counterfactual wish or friction cue (e.g., `I wish it had`, `difficult to use`).
-   - Use the **Custom Sentence Live Tester** at the top:
-     - Type: *"Please add support for UPI and Google Pay"* $\rightarrow$ Classifies as **EXPLICIT_NEED**.
-     - Type: *"I have to carry three chargers because the battery doesn't last two hours"* $\rightarrow$ Classifies as **IMPLICIT_NEED**.
-     - Type: *"The app freezes and crashes every time I tap pay"* $\rightarrow$ Classifies as **PAIN_POINT**.
-     - Type: *"Good food, five stars"* $\rightarrow$ Classifies as **NON_ACTIONABLE**.
+2. **Step 2: Overview Tab**
+   - Show the active dataset: `semeval2015_research_ready.csv` (Curated 45-Set).
+   - Point out the 5 quantitative summary cards: Total Rows, Heuristic Baseline count, Gemini AI count, Actionable Needs, and Human Double-Annotated pairs.
+   - Point out the research integrity notice explaining that counts represent heuristic predictions, not ground truth.
 
-3. **Tab 3: Human Annotation & Krippendorff's Alpha**
-   - Explain the two independent annotator roles (Annotator A vs Annotator B).
-   - Show how a disagreement is detected when Annotator A and B choose different categories.
-   - Show the Adjudication panel where the third-pass gold label and rationale are assigned.
-   - Show the live Krippendorff's Alpha scorecard ($\alpha$, observed agreement %, paired units count).
+3. **Step 3: Feedback Analysis Tab (Model Comparison)**
+   - Select a record in the table.
+   - Click **"Run Heuristic"** $\rightarrow$ Show the matched regex cues and linguistic explanation on the left card.
+   - Click **"Classify with Gemini AI"** $\rightarrow$ Show the Gemini structured output on the right card (Sentiment badge, Requirement category badge, verbatim evidence span, scientific explanation, model-reported confidence).
+   - Use the **Interactive Multi-Model Tester**:
+     - Type: *"Please add support for UPI and PhonePe"* $\rightarrow$ Both models classify as **EXPLICIT_NEED**.
+     - Type: *"I have to carry three chargers because the battery doesn't last two hours"* $\rightarrow$ Both models classify as **IMPLICIT_NEED** (Sentiment: **NEGATIVE**).
+     - Type: *"App freezes and crashes every time I tap pay"* $\rightarrow$ Both models classify as **PAIN_POINT** (Sentiment: **NEGATIVE**).
+     - Type: *"Great service, five stars"* $\rightarrow$ Both models classify as **NON_ACTIONABLE** (Sentiment: **POSITIVE**).
 
-4. **Tab 4: Evaluation & Benchmark**
-   - Show the formal Research Questions (RQ1–RQ4).
-   - Show Table V and Table VI from your IEEE manuscript, showing how every pending cell is honestly documented.
-   - Walk through the SemEval Laptop vs Restaurant descriptive comparison.
+4. **Step 4: Human Annotation & Alpha Tab**
+   - Demonstrate the dual independent roles: Annotator A submits a label, Annotator B submits independently.
+   - Show how a disagreement triggers the Adjudication panel per Section VII of the manuscript.
+   - Show the live Krippendorff's Alpha scorecard with mathematical interpretation.
+
+5. **Step 5: Evaluation & Benchmark Tab**
+   - Walk the examiner through RQ1–RQ4.
+   - Show Table V (Dataset Statistics) and Table VI (Model Macro-F1 comparison), highlighting that pending cells are honestly preserved.
    - Show Table VII detailing the 10 failure modes planned for qualitative error analysis.
 
-5. **Tab 5: Dataset Switcher**
-   - Click **"Switch to Full 4,161 Benchmark"**.
-   - Show how the entire application instantly processes the 4,161 rows across 531 unique reviews and 3,054 unique sentences without lagging or breaking.
-   - Switch back to the curated 45-set to show seamless flexibility.
+6. **Step 6: Dataset Switcher Tab**
+   - Switch to **"Full 4,161-Row SemEval Benchmark"** to prove the app handles real-world scale (531 reviews, 3,054 sentences) without lag or memory leaks.
+   - Switch back to the curated 45-set for swift demonstration.

@@ -1,99 +1,153 @@
 # Customer Requirement Analysis Using User Generated Content
-
-A clean, functional college mini-project prototype for analyzing and categorizing customer requirements from unstructured User-Generated Content (UGC) such as product reviews and customer feedback.
-
-## Project Overview
-
-In software and product development, customers often express critical requirements, desires, and bug reports through unstructured online reviews. Traditional sentiment analysis only flags polarity (positive, negative, or neutral), which does not provide actionable guidance for engineering backlogs.
-
-This prototype demonstrates how customer feedback can be categorized into four operational requirement classes:
-1. **EXPLICIT_NEED**: Direct customer requests or commands for a feature or service (e.g., *"Please add an option to disable backlight timeout"*).
-2. **IMPLICIT_NEED**: Indirect customer desires, counterfactual wishes, or usability friction indicating an unmet requirement (e.g., *"I wish the battery lasted 7 hours"*).
-3. **PAIN_POINT**: Descriptions of acute system malfunctions, bugs, crashes, or severe operational defects (e.g., *"The machine froze completely three times today"*).
-4. **NON_ACTIONABLE**: General praise, aesthetic opinions, or commentary without engineering requirement implications (e.g., *"Solid aluminum chassis and lightweight"*).
+**Academic Research Project & Multi-Model Prototype**  
+**Authors:** Rupika Upadhyay, Roshni Singh, Ronak Garg, Rishu Awasthi (Department of CSE, ABES Engineering College)  
+**Supervisor:** Mr. Praveen Kumar Rai | **Course:** BCS554 (5th Sem Mini Project)  
+**Repository:** [https://github.com/rishuawasthi/customer-requirement-analysis-using-ugc.git](https://github.com/rishuawasthi/customer-requirement-analysis-using-ugc.git)
 
 ---
 
-## Academic Methodology Note
+## 1. Project Overview & Research Problem
 
-- **Baseline Classification Approach**: This prototype implements a transparent, deterministic rule-based linguistic heuristic baseline. It matches syntactic and lexical cues (imperative modal verbs, counterfactual wish markers, failure descriptors).
-- **Honest Academic Disclosure**: This is an interpretable baseline prototype, not a black-box deep neural network. No synthetic or fabricated metrics (such as fake F1 scores or artificial confidence percentages) are displayed. All dataset statistics are calculated dynamically from real imported records.
-- **Dataset Distinction**: In the SemEval-2015 Task 12 benchmark, original labels represent sentiment polarity and aspect categories. This application explicitly preserves and separates those original labels from our requirement categories.
+In software development and product management, user reviews and feedback submissions provide an indispensable stream of real-world user sentiment. However, traditional sentiment analysis only produces polarity scores (*positive*, *negative*, *neutral*), which fails to answer the critical question engineering teams face: **What specific changes, features, or fixes do customers want?**
 
----
+This project bridges that gap by operationalizing a **Four-Class Customer Requirement Taxonomy**:
 
-## Four Main Sections
-
-1. **Overview**: Summary of loaded records, real counts of categorized feedback, word-count distributions, and breakdown of original SemEval benchmark labels.
-2. **Feedback Analysis**: Searchable and filterable feedback table, single-sentence analyzer, manual annotation verification tool, custom sentence tester, batch classifier, and CSV export.
-3. **Dataset**: Excel (`.xlsx`, `.xls`) and CSV dataset loader, schema inspection tool separating text from metadata, and raw tabular data view.
-4. **About the Project**: Academic documentation covering the problem statement, requirement category definitions with authentic examples, the end-to-end workflow pipeline, and honest prototype limitations.
+| Category | Operational Definition | Prototypical Example |
+| :--- | :--- | :--- |
+| **`EXPLICIT_NEED`** | Customer directly requests, wants, or commands a specific feature, change, or fix. | *"Please add an option to export reports as PDF."* |
+| **`IMPLICIT_NEED`** | A desired improvement can be inferred from a described friction or workaround, without a direct request. | *"I have to screenshot every transaction because there is no way to save history."* |
+| **`PAIN_POINT`** | Dissatisfaction or an acute crash/failure with no clearly inferable desired feature. | *"The checkout process is extremely frustrating and crashes."* |
+| **`NON_ACTIONABLE`** | General praise, rating restatement, or subjective commentary with no actionable requirement signal. | *"Great app, five stars."* |
 
 ---
 
-## Installation & Startup Instructions
+## 2. Multi-Model Architecture
+
+The application supports a rigorous comparative evaluation between two distinct model families:
+
+```
+                                  +-------------------------------------------------------------+
+                                  |                 User-Generated Content (UGC)                |
+                                  |         (SemEval-2015 Laptop & Restaurant Review Corpus)     |
+                                  +------------------------------+------------------------------+
+                                                                 |
+                                       +-------------------------+-------------------------+
+                                       |                                                   |
+                                       v                                                   v
+                         [Rule-Based Heuristic Baseline]                         [Google Gemini AI Classifier]
+                         - Deterministic Regex Engine                            - Official @google/genai SDK
+                         - Lexical cues & modal verbs                            - Backend Node.js Express API
+                         - Fully interpretable rationale                         - Two-dimensional structured output:
+                         - Zero hallucinations                                     * Sentiment (Pos/Neg/Neu/Mix)
+                                                                                   * Requirement Category
+                                                                                   * Verbatim Evidence
+                                                                                   * Model Confidence
+                                                                 |
+                                       +-------------------------+-------------------------+
+                                       |
+                                       v
+                         [Independent Human Annotation & Reliability]
+                         - Independent Annotator A & Annotator B roles
+                         - Third-pass Adjudication of disagreements
+                         - Live Nominal Krippendorff's Alpha (α)
+                         - Strict isolation: Predictions are never treated as ground truth
+```
+
+1. **Rule-Based Heuristic Baseline:** A transparent, deterministic linguistic pattern matching engine (`src/utils/classifier.ts`). Inspects imperative directives, counterfactual wishes, and defect terms.
+2. **Google Gemini AI Classifier:** Official `@google/genai` SDK integrated via a secure backend Node.js Express API (`server/server.js`). Classifies both **Sentiment Polarity** and **Customer Requirement Taxonomy** in a single structured JSON request.
+
+---
+
+## 3. Two-Dimensional Structured Output Specification
+
+Gemini produces structured JSON adhering to the OpenAPI schema:
+
+```json
+{
+  "sentiment": "NEGATIVE",
+  "requirement_category": "EXPLICIT_NEED",
+  "evidence": "Please provide Linux compatible drivers.",
+  "explanation": "Customer issues a direct imperative request for Linux driver support.",
+  "confidence": 0.96
+}
+```
+
+- **Sentiment Dimension:** `POSITIVE`, `NEGATIVE`, `NEUTRAL`, `MIXED`
+- **Requirement Dimension:** `EXPLICIT_NEED`, `IMPLICIT_NEED`, `PAIN_POINT`, `NON_ACTIONABLE`
+- **Boundary Rules Enforced:**
+  - Direct request $\rightarrow$ `EXPLICIT_NEED` (even if sentiment is strongly negative).
+  - Friction/workaround implying specific improvement $\rightarrow$ `IMPLICIT_NEED`.
+  - Acute failure without inferable feature $\rightarrow$ `PAIN_POINT`.
+  - Generic praise or commentary $\rightarrow$ `NON_ACTIONABLE`.
+- **Independence:** Sentiment and requirement category are evaluated independently.
+- **Confidence Disclosure:** Confidence is model-reported token certainty, not statistically calibrated certainty.
+
+---
+
+## 4. Benchmark Configurations ($k \in \{0, 2, 4, 8\}$)
+
+Controlled prompt regimes configured in `server/prompts.js`:
+- **$k=0$ (Zero-Shot):** System instruction with operational boundary definitions only.
+- **$k=2$ (Few-Shot):** Balanced exemplars (2 per category) drawn exclusively from the training split.
+- **$k=4$ (Few-Shot):** 4 balanced training exemplars per category.
+- **$k=8$ (Few-Shot):** 8 balanced training exemplars per category.
+- **Leakage Prevention:** Zero evaluation or test-split sentences are included in few-shot demonstrations.
+
+---
+
+## 5. Quickstart & Installation (Windows PowerShell)
 
 ### Prerequisites
-- Node.js (version 18 or higher)
-- npm (version 9 or higher)
+- Node.js (v18 or higher)
+- npm (v9 or higher)
 
-### 1. Install Dependencies
-```bash
+### Step 1: Install Dependencies
+```powershell
 npm install
 ```
 
-### 2. Start the Development Server
-```bash
+### Step 2: Configure Environment Variables
+Copy `.env.example` to create your local `.env`:
+```powershell
+Copy-Item .env.example .env
+```
+Edit `.env` to set your Google Gemini API key:
+```env
+GEMINI_API_KEY="YOUR_ACTUAL_API_KEY_HERE"
+GEMINI_MODEL="gemini-2.5-flash"
+PORT=5000
+```
+> **Security Notice:** The `.env` file is excluded from Git tracking via `.gitignore`. The API key is only read by the backend server and is never bundled in frontend code or transmitted to the browser.
+
+### Step 3: Launch Backend API Server
+In a terminal, start the Express backend:
+```powershell
+npm run server
+```
+Server starts on `http://localhost:5000`.
+
+### Step 4: Launch Frontend Application
+In a separate terminal, start the Vite development server:
+```powershell
 npm run dev
 ```
-The application will start on `http://localhost:3000`.
-
-### 3. Build for Production
-```bash
-npm run build
-```
+Open your browser at `http://localhost:3000`.
 
 ---
 
-## How to Import the Dataset
+## 6. Backend API Specification
 
-The application supports both **Microsoft Excel (`.xlsx`, `.xls`)** and **CSV (`.csv`)** files.
-
-### Option 1: Load the Bundled SemEval-2015 Dataset (Recommended for Demo)
-1. Open the application and navigate to the **Dataset** tab.
-2. Click **Load semeval2015_research_ready.xlsx** or **Load CSV Version**.
-3. The dataset will load immediately, inspect columns (`id`, `text`, `aspect_category`, `aspect_term`, `polarity`), and populate the table.
-
-### Option 2: Upload Custom Excel or CSV File
-1. Navigate to the **Dataset** tab.
-2. In the "Import Custom File" card, click **Browse Dataset File...**.
-3. Select your `.xlsx`, `.xls`, or `.csv` file.
-4. The parser will automatically scan the headers, identify the column containing customer feedback sentences (e.g. `text`, `sentence`, `review`, or `feedback`), and extract all metadata columns.
-5. If the file is missing headers or empty, a helpful validation message will appear on screen.
+| Method | Endpoint | Description | Request Body | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/health` | Status and Gemini configuration check | None | `{ status: "ok", geminiConfigured: true, model: "gemini-2.5-flash", port: 5000 }` |
+| `POST` | `/api/classify` | Single sentence classification | `{ text: "...", config: { k: 0 } }` | `{ success: true, result: { sentiment, requirement_category, evidence, explanation, confidence, model, k } }` |
+| `POST` | `/api/batch-classify` | Throttled batch classification | `{ items: [{ id, text }], config: { k: 0, concurrency: 3 } }` | `{ success: true, total, processed, results: [...] }` |
 
 ---
 
-## Exporting Results for Academic Reports
+## 7. Research Integrity & Benchmark Status
 
-You can download the analyzed dataset at any time as an RFC-4180-compliant CSV file (with UTF-8 BOM encoding for seamless opening in Microsoft Excel, Google Sheets, or Python pandas).
-
-### Export Options:
-- **From Overview Tab:** Click **Download Results (CSV)** in the top banner or use the **Academic Project Report Deliverable** card.
-- **From Feedback Analysis Tab:**
-  - Click **Quick CSV** to instantly download all records with analysis categories, linguistic explanations, and metadata.
-  - Click **Export Report...** to choose specific scopes:
-    - *Complete Dataset*
-    - *Actionable Requirements Only* (`EXPLICIT_NEED` + `IMPLICIT_NEED` + `PAIN_POINT`)
-    - *Analyzed / Classified Records Only*
-    - *Filtered View* (matching current search keyword or selected category)
-- **Columns Included in Exported CSV:**
-  - `id`: Feedback sentence identifier.
-  - `feedback_text`: The customer sentence analyzed.
-  - `requirement_category`: Category enum (`EXPLICIT_NEED`, `IMPLICIT_NEED`, `PAIN_POINT`, `NON_ACTIONABLE`).
-  - `category_readable_label`: Human-friendly label (e.g., *Explicit Need*).
-  - `classification_method`: *Rule-Based Linguistic Heuristic* or *Manual Academic Annotation*.
-  - `matched_linguistic_cues`: The exact phrases/verbs that triggered the classification rule.
-  - `explanation_and_rationale`: Scientific justification of the classification.
-  - `is_user_annotated`: Boolean flag indicating whether the sentence was manually verified.
-  - `original_*`: Preserves all original columns from the benchmark (such as `aspect_category`, `polarity`, `target`).
-
+1. **Experimental Values Marked as Pending:** Per Section I and Section X of the manuscript, benchmark Macro-F1 scores in Table VI remain marked as `[Pending Gold Annotation]`. Interactive model predictions in the prototype are not counted as completed experimental results.
+2. **No Circular Pseudo-Labeling:** The supervised Linear SVM baseline is not trained on regex heuristic outputs, as this would produce invalid circular evaluation figures.
+3. **Krippendorff's Alpha:** Computed strictly across dual independent human annotations ($m=2$). Automated model predictions and adjudicated gold labels are excluded from agreement calculations.
+4. **Domain Scope:** The available SemEval-2015 dataset includes Laptop (2,314 rows) and Restaurant (1,847 rows) reviews. This exploratory comparison is distinct from the manuscript's proposed Amazon-to-AWARE cross-domain study.

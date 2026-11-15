@@ -10,7 +10,8 @@ import {
   CheckCircle2,
   Table as TableIcon,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Bot
 } from 'lucide-react';
 import { FeedbackRecord } from '../types';
 
@@ -271,32 +272,94 @@ export const EvaluationBenchmarkSection: React.FC<EvaluationBenchmarkSectionProp
                   GPU fine-tuning pending gold training split
                 </td>
               </tr>
-              <tr>
-                <td className="px-4 py-2 font-medium">LLM Prompting (k = 0, Zero-Shot)</td>
-                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending]</td>
-                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending]</td>
-                <td className="px-4 py-2 text-slate-600">System prompt with boundary rules formulated</td>
+              <tr className="bg-purple-50/30">
+                <td className="px-4 py-2 font-medium text-purple-950">
+                  Gemini AI (k = 0, Zero-Shot)
+                </td>
+                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending Gold Set]</td>
+                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending Gold Set]</td>
+                <td className="px-4 py-2 text-purple-800 font-semibold">
+                  API &amp; Structured JSON Engine Live
+                </td>
               </tr>
-              <tr>
-                <td className="px-4 py-2 font-medium">LLM Prompting (k = 2, Few-Shot)</td>
-                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending]</td>
-                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending]</td>
-                <td className="px-4 py-2 text-slate-600">Exemplars drawn exclusively from training split</td>
+              <tr className="bg-purple-50/30">
+                <td className="px-4 py-2 font-medium text-purple-950">
+                  Gemini AI (k = 2, Few-Shot)
+                </td>
+                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending Gold Set]</td>
+                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending Gold Set]</td>
+                <td className="px-4 py-2 text-purple-800 font-semibold">
+                  Controlled Training Exemplars Operational
+                </td>
               </tr>
-              <tr>
-                <td className="px-4 py-2 font-medium">LLM Prompting (k = 4, Few-Shot)</td>
-                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending]</td>
-                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending]</td>
-                <td className="px-4 py-2 text-slate-600">Exemplars drawn exclusively from training split</td>
+              <tr className="bg-purple-50/30">
+                <td className="px-4 py-2 font-medium text-purple-950">
+                  Gemini AI (k = 4, Few-Shot)
+                </td>
+                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending Gold Set]</td>
+                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending Gold Set]</td>
+                <td className="px-4 py-2 text-purple-800 font-semibold">
+                  Controlled Training Exemplars Operational
+                </td>
               </tr>
-              <tr>
-                <td className="px-4 py-2 font-medium">LLM Prompting (k = 8, Few-Shot)</td>
-                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending]</td>
-                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending]</td>
-                <td className="px-4 py-2 text-slate-600">Exemplars drawn exclusively from training split</td>
+              <tr className="bg-purple-50/30">
+                <td className="px-4 py-2 font-medium text-purple-950">
+                  Gemini AI (k = 8, Few-Shot)
+                </td>
+                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending Gold Set]</td>
+                <td className="px-4 py-2 text-center text-slate-500 italic">[Pending Gold Set]</td>
+                <td className="px-4 py-2 text-purple-800 font-semibold">
+                  Controlled Training Exemplars Operational
+                </td>
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Gemini AI Integration & Prompt Specification Card */}
+      <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs">
+        <div className="flex items-center space-x-2 pb-3 mb-3 border-b border-slate-100">
+          <Bot className="w-5 h-5 text-purple-700" />
+          <h3 className="text-base font-semibold text-slate-900">
+            Gemini AI Benchmark Architecture &amp; Prompt Specification
+          </h3>
+        </div>
+
+        <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <p>
+            The project integrates Google's official <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">@google/genai</code> SDK through a secure backend Node.js architecture to implement the LLM experimental arms specified in Section VIII-D of the manuscript.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5">
+              <span className="font-semibold text-slate-900">1. Two-Dimensional Independence</span>
+              <p className="text-slate-600">
+                Gemini classifies both <strong>Sentiment Polarity</strong> (Positive, Negative, Neutral, Mixed) and <strong>Customer Requirement Category</strong> (Explicit Need, Implicit Need, Pain Point, Non-Actionable) in a single structured request. Sentiment does not dictate requirement category.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5">
+              <span className="font-semibold text-slate-900">2. Strict Schema Enforcement</span>
+              <p className="text-slate-600">
+                Responses are constrained via OpenAPI JSON Schema to guarantee field presence (<code className="font-mono">sentiment</code>, <code className="font-mono">requirement_category</code>, <code className="font-mono">evidence</code>, <code className="font-mono">explanation</code>, <code className="font-mono">confidence</code>), eliminating parsing failures.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5">
+              <span className="font-semibold text-slate-900">3. Exemplar Leakage Prevention</span>
+              <p className="text-slate-600">
+                Few-shot exemplars (<code className="font-mono">k ∈ &#123;0, 2, 4, 8&#125;</code>) are drawn exclusively from verified training split examples, guaranteeing zero data leakage into evaluation partitions.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5">
+              <span className="font-semibold text-slate-900">4. Scientific Confidence Footnote</span>
+              <p className="text-slate-600">
+                Confidence reported by Gemini reflects internal token probability heuristics and is explicitly communicated in the UI as <em>model-reported, uncalibrated confidence</em>.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
