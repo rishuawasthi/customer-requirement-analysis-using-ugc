@@ -5,7 +5,7 @@ Exposes endpoints for dataset synchronization, model training, and inference.
 
 import os
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -13,7 +13,12 @@ from .split_manager import (
     TAXONOMY_CATEGORIES,
     get_dataset_statistics,
     load_adjudicated_data,
-    save_adjudicated_data
+    save_adjudicated_data,
+    DEFAULT_DATA_PATH,
+    EXPLORATORY_DATA_PATH,
+    generate_split_manifests,
+    EXPLORATORY_MANIFEST_DIR,
+    DATA_DIR
 )
 from .svm_arm import SvmClassifierArm
 from .roberta_arm import RobertaClassifierArm
@@ -43,27 +48,46 @@ class TextRequest(BaseModel):
 
 class SyncDatasetRequest(BaseModel):
     records: List[Dict[str, Any]]
+    mode: str = 'gold'
+
+
+class SplitRequest(BaseModel):
+    records: Optional[List[Dict[str, Any]]] = None
+    mode: str = 'gold'
+
+
+def _validate_mode(mode: str) -> str:
+    if mode not in ('gold', 'exploratory'):
+        raise HTTPException(status_code=400, detail="mode must be 'gold' or 'exploratory'")
+    return mode
+
+
+def _dataset_path(mode: str) -> str:
+    return EXPLORATORY_DATA_PATH if mode == 'exploratory' else DEFAULT_DATA_PATH
 
 
 @app.get("/health")
 @app.get("/ml/status")
-def get_status():
-    records = load_adjudicated_data()
-    stats = get_dataset_statistics(records)
+def get_status(mode: str = Query(default='gold')):
+    mode = _validate_mode(mode)
+    records = load_adjudicated_data(_dataset_path(mode))
+    stats = get_dataset_statistics(records, mode=mode)
     return {
         "status": "ok",
         "service": "python-ml-service",
-        "svm_arm": svm_arm.get_status(records),
-        "roberta_arm": roberta_arm.get_status(records),
+        "mode": mode,
+        "svm_arm": svm_arm.get_status(records, mode=mode),
+        "roberta_arm": roberta_arm.get_status(records, mode=mode),
         "dataset_statistics": stats
     }
 
 
 @app.post("/ml/sync-dataset")
 def sync_dataset(req: SyncDatasetRequest):
+    mode = _validate_mode(req.mode)
     records = req.records
-    save_path = save_adjudicated_data(records)
-    stats = get_dataset_statistics(records)
+    save_path = save_adjudicated_data(records, path=_dataset_path(mode))
+    stats = get_dataset_statistics(records, mode=mode)
     return {
         "success": True,
         "saved_records": len(records),
@@ -72,15 +96,24 @@ def sync_dataset(req: SyncDatasetRequest):
     }
 
 
+@app.post("/ml/splits")
+def generate_splits(req: SplitRequest):
+    mode = _validate_mode(req.mode)
+    records = req.records if req.records is not None else load_adjudicated_data(_dataset_path(mode))
+    output_dir = DATA_DIR if mode == 'gold' else EXPLORATORY_MANIFEST_DIR
+    return generate_split_manifests(records, output_dir=output_dir)
+
+
 @app.post("/ml/svm/classify")
 def classify_svm(req: TextRequest):
     return svm_arm.classify(req.text)
 
 
 @app.post("/ml/svm/train")
-def train_svm():
-    records = load_adjudicated_data()
-    result = svm_arm.train(records)
+def train_svm(mode: str = Query(default='gold')):
+    mode = _validate_mode(mode)
+    records = load_adjudicated_data(_dataset_path(mode))
+    result = svm_arm.train(records, mode=mode)
     if not result.get('success'):
         return {"success": False, "status": result.get('status'), "message": result.get('message'), "details": result.get('details')}
     return result
@@ -92,9 +125,10 @@ def classify_roberta(req: TextRequest):
 
 
 @app.post("/ml/roberta/train")
-def train_roberta():
-    records = load_adjudicated_data()
-    result = roberta_arm.train(records)
+def train_roberta(mode: str = Query(default='gold')):
+    mode = _validate_mode(mode)
+    records = load_adjudicated_data(_dataset_path(mode))
+    result = roberta_arm.train(records, mode=mode)
     if not result.get('success'):
         return {"success": False, "status": result.get('status'), "message": result.get('message'), "details": result.get('details')}
     return result
