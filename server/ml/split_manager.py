@@ -136,7 +136,8 @@ def get_dataset_statistics(records: List[Dict[str, Any]], mode: str = 'gold') ->
 
     for r in records:
         ha = r.get('humanAnnotations') or {}
-        if ha.get('annotatorA') or ha.get('annotatorB'):
+        # Dual annotation means both independent human coder fields are present.
+        if ha.get('annotatorA') and ha.get('annotatorB'):
             annotated_records.append(r)
 
         label = None
@@ -150,10 +151,11 @@ def get_dataset_statistics(records: List[Dict[str, Any]], mode: str = 'gold') ->
             if label not in TAXONOMY_CATEGORIES:
                 label = None
 
-        if label:
+        clean_text = str(r.get('text') or '').strip()
+        if label and clean_text:
             adjudicated_records.append({
                 'id': r.get('id'),
-                'text': r.get('text', '').strip(),
+                'text': clean_text,
                 'review_id': r.get('reviewId') or r.get('review_id') or r.get('id'),
                 'label': label
             })
