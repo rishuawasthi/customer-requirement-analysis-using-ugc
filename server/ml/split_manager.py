@@ -16,7 +16,7 @@ SPLIT_RATIOS = {'train': 0.70, 'val': 0.15, 'test': 0.15}
 RANDOM_SEED = 42
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
-DEFAULT_DATA_PATH = os.path.join(DATA_DIR, 'adjudicated_dataset.json')
+DEFAULT_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'adjudicated_dataset.json')
 EXPLORATORY_DATA_PATH = os.path.join(DATA_DIR, 'ai_exploratory_dataset.json')
 
 TRAIN_MANIFEST_PATH = os.path.join(DATA_DIR, 'train_manifest.json')
