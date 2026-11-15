@@ -68,12 +68,18 @@ class SvmClassifierArm:
             except Exception:
                 eval_data = None
 
+        # Never expose exploratory metrics in the formal gold-mode view (or vice versa).
+        if eval_data and eval_data.get('mode') != mode:
+            eval_data = None
+
+        metadata_matches_mode = bool(self.metadata and self.metadata.get('mode') == mode)
+
         return {
             'model_name': 'LinearSVC (Unigram+Bigram TF-IDF)',
-            'status': 'trained' if self.is_loaded else 'awaiting_data',
-            'is_trained': self.is_loaded,
-            'artifact_path': MODEL_PATH if self.is_loaded else None,
-            'training_metadata': self.metadata if self.is_loaded else None,
+            'status': 'trained' if self.is_loaded and metadata_matches_mode else 'awaiting_data',
+            'is_trained': self.is_loaded and metadata_matches_mode,
+            'artifact_path': MODEL_PATH if self.is_loaded and metadata_matches_mode else None,
+            'training_metadata': self.metadata if metadata_matches_mode else None,
             'dataset_status': stats,
             'evaluation': eval_data
         }
@@ -315,10 +321,12 @@ class SvmClassifierArm:
             'requirement_category': predicted_category,
             'category': predicted_category,
             'confidence': round(confidence, 4),
+            'confidence_is_calibrated': False,
+            'confidence_kind': 'softmax_transformed_decision_margin',
             'model': 'LinearSVC (Unigram+Bigram TF-IDF)',
             'method': 'Traditional ML (TF-IDF + Linear SVM)',
             'status': 'success',
-            'explanation': f"Classified by Linear SVM with calibrated margin confidence {round(confidence * 100, 1)}%.",
+            'explanation': f"Classified by Linear SVM; displayed score is a softmax-transformed decision margin, not a calibrated probability ( {round(confidence * 100, 1)}%).",
             'per_class_scores': scores_dict,
             'decision_scores': scores_dict,
             'latencyMs': elapsed_ms
