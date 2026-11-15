@@ -4,7 +4,10 @@ Tests:
 1. Review ID-based split determinism and zero data leakage
 2. Training refusal when adjudicated data is below threshold
 3. End-to-end SVM training, calibration, persistence, and inference on eligible data
-4. Non-fabrication guarantee: no mock artifacts survive into production
+4. Evaluation metrics (Macro-F1, accuracy, per-class metrics)
+5. 95% bootstrap confidence interval estimation
+6. 4x4 Confusion matrix calculation and normalization
+7. Error analysis and boundary confusion categorizations
 """
 
 import os
@@ -16,9 +19,17 @@ from server.ml.split_manager import (
     assign_review_to_split,
     partition_records,
     get_dataset_statistics,
+    generate_split_manifests,
+    verify_zero_leakage,
     TAXONOMY_CATEGORIES
 )
 from server.ml.svm_arm import SvmClassifierArm
+from server.ml.evaluation import (
+    calculate_metrics,
+    bootstrap_macro_f1_ci,
+    compute_confusion_matrix_data,
+    extract_error_analysis
+)
 
 
 class TestMlPipeline(unittest.TestCase):
@@ -46,13 +57,22 @@ class TestMlPipeline(unittest.TestCase):
         self.assertEqual(len(train_revs.intersection(test_revs)), 0, "Train and Test review sets must have 0 overlap")
         self.assertEqual(len(val_revs.intersection(test_revs)), 0, "Val and Test review sets must have 0 overlap")
 
-        # Check all sentences belonging to a review are in the exact same split
-        for r in splits['train']:
-            self.assertIn(r['review_id'], train_revs)
-        for r in splits['val']:
-            self.assertIn(r['review_id'], val_revs)
-        for r in splits['test']:
-            self.assertIn(r['review_id'], test_revs)
+        leak_check = verify_zero_leakage(splits)
+        self.assertTrue(leak_check['zero_leakage'])
+
+    def test_manifest_generation(self):
+        """Verify that generate_split_manifests creates manifest files and validates zero leakage."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            records = [
+                {'id': f"REC_{i}", 'review_id': f"REV_{i % 10}", 'text': f"Sample {i}", 'label': 'PAIN_POINT'}
+                for i in range(30)
+            ]
+            res = generate_split_manifests(records, output_dir=tmp_dir)
+            self.assertTrue(res['success'])
+            self.assertTrue(res['leakage_verification']['zero_leakage'])
+            for split in ['train', 'val', 'test']:
+                manifest_path = os.path.join(tmp_dir, f"{split}_manifest.json")
+                self.assertTrue(os.path.exists(manifest_path))
 
     def test_training_refusal_insufficient_data(self):
         """Verify that SVM refuses to train when adjudicated data is below threshold."""
@@ -61,17 +81,50 @@ class TestMlPipeline(unittest.TestCase):
             {'id': '2', 'review_id': 'r2', 'text': 'sentence 2', 'adjudicated': 'PAIN_POINT'}
         ]
         arm = SvmClassifierArm()
-        res = arm.train(records)
+        res = arm.train(records, mode='gold')
         self.assertFalse(res['success'])
         self.assertEqual(res['status'], 'insufficient_data')
         self.assertIn('requires at least', res['message'])
 
+    def test_evaluation_metrics_and_bootstrap_ci(self):
+        """Verify calculate_metrics and bootstrap_macro_f1_ci."""
+        y_true = ['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'] * 5
+        y_pred = ['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'] * 4 + ['EXPLICIT_NEED', 'PAIN_POINT', 'PAIN_POINT', 'NON_ACTIONABLE']
+
+        metrics = calculate_metrics(y_true, y_pred)
+        self.assertIn('macro_f1', metrics)
+        self.assertIn('accuracy', metrics)
+        self.assertGreater(metrics['macro_f1'], 0.0)
+        self.assertEqual(len(metrics['per_class']), 4)
+
+        ci = bootstrap_macro_f1_ci(y_true, y_pred, n_iterations=100)
+        self.assertIn('ci_lower', ci)
+        self.assertIn('ci_upper', ci)
+        self.assertLessEqual(ci['ci_lower'], ci['ci_upper'])
+
+    def test_confusion_matrix_and_error_analysis(self):
+        """Verify confusion matrix computation and error categorization."""
+        y_true = ['IMPLICIT_NEED', 'EXPLICIT_NEED']
+        y_pred = ['PAIN_POINT', 'IMPLICIT_NEED']
+        records = [
+            {'id': '1', 'review_id': 'rev1', 'text': 'Battery does not last long.'},
+            {'id': '2', 'review_id': 'rev2', 'text': 'Please add dark mode.'}
+        ]
+
+        cm = compute_confusion_matrix_data(y_true, y_pred)
+        self.assertEqual(len(cm['matrix']), 4)
+        self.assertEqual(len(cm['matrix'][0]), 4)
+
+        errors = extract_error_analysis(records, y_true, y_pred, confidences=[0.85, 0.90])
+        self.assertEqual(len(errors), 2)
+        self.assertEqual(errors[0]['confusion_type'], 'IMPLICIT_VS_PAIN_POINT')
+        self.assertEqual(errors[1]['confusion_type'], 'EXPLICIT_VS_IMPLICIT')
+
     def test_svm_eligible_training_and_inference(self):
         """Verify that Linear SVM trains, calibrates, and infers when eligible dataset is provided."""
-        # Generate eligible synthetic dataset with distinct reviews and balanced categories
         records = []
         rec_id = 1
-        for cat_idx, cat in enumerate(TAXONOMY_CATEGORIES):
+        for cat in TAXONOMY_CATEGORIES:
             for i in range(12):  # 12 samples per category across distinct reviews
                 rev_id = f"REV_{cat}_{i}"
                 if cat == 'EXPLICIT_NEED':
@@ -91,11 +144,11 @@ class TestMlPipeline(unittest.TestCase):
                 })
                 rec_id += 1
 
-        stats = get_dataset_statistics(records)
+        stats = get_dataset_statistics(records, mode='gold')
         self.assertTrue(stats['training_eligibility']['is_eligible'])
 
         arm = SvmClassifierArm()
-        train_res = arm.train(records)
+        train_res = arm.train(records, mode='gold')
         self.assertTrue(train_res['success'])
         self.assertEqual(train_res['status'], 'trained')
         self.assertIn('validation_metrics', train_res['metadata'])
@@ -107,6 +160,18 @@ class TestMlPipeline(unittest.TestCase):
         self.assertGreater(infer_res['confidence'], 0.0)
         self.assertIn('decision_scores', infer_res)
         self.assertGreater(infer_res['latencyMs'], 0.0)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test artifacts to ensure zero pollution of production state."""
+        artifacts_dir = os.path.join(os.path.dirname(__file__), 'artifacts')
+        for fname in ['svm_model.joblib', 'svm_metadata.json', 'svm_evaluation.json']:
+            fpath = os.path.join(artifacts_dir, fname)
+            if os.path.exists(fpath):
+                try:
+                    os.remove(fpath)
+                except Exception:
+                    pass
 
 
 if __name__ == '__main__':

@@ -19,13 +19,13 @@
 > 3. **Pain Points:** acute dissatisfaction, crashes, or failures with no inferable desired feature ('The checkout crashes repeatedly').
 > 4. **Non-Actionable Content:** general praise or commentary ('Great app, five stars').*
 >
-> *Our prototype implements a **Multi-Model Architecture**:
+> *Our prototype implements a **Multi-Model Benchmark Architecture**:
 > - A transparent, deterministic **Rule-Based Heuristic Baseline** matching syntactic and modal cues.
-> - An advanced **Google Gemini AI Classifier** via the official `@google/genai` SDK, producing structured JSON classifying both **Sentiment** and **Requirement Category** in parallel.
+> - **Model Arm 1 (Linear SVM):** Sublinear TF-IDF (1-2 ngrams) + balanced LinearSVC with calibrated continuous confidence.
+> - **Model Arm 2 (RoBERTa-base):** 4-way sequence classification transformer with hardware detection (RTX 3050 / CPU fallback).
+> - **Model Arm 3 (Google Gemini 2.5 Flash):** Zero-shot ($k=0$) and few-shot ($k=2, 4, 8$ per class) prompting drawing exemplars strictly from the training split.
 > - An **Independent Human Annotation Workbench** with live nominal Krippendorff's alpha reliability scoring.
-> - A **Dataset Switcher** supporting both our curated 45-record presentation set and the full 4,161-row SemEval benchmark.*
->
-> *Crucially, we maintain strict scientific integrity: empirical model benchmark scores in Table VI remain marked as pending until large-scale human gold-standard annotation is finalized, avoiding synthetic or circular accuracy claims."*
+> - **Two Dataset Modes:** Mode A (Human Gold Benchmark) with strict training refusal when human labels are below threshold, and Mode B (Exploratory Weak Supervision) to demonstrate the full pipeline, 95% bootstrap CI, and 4×4 confusion matrix."*
 
 ---
 
@@ -57,10 +57,10 @@ Evaluating them independently prevents conflating emotional dissatisfaction with
 
 ---
 
-### Q4: Why are benchmark Macro-F1 scores in Table VI marked as "[Pending]"?
-**Examiner intent:** Checking if you copied a paper or fabricated numbers.  
+### Q4: How did you prevent data leakage across train, validation, and test splits?
+**Examiner intent:** Checking if you understand intra-review leakage in multi-sentence NLP benchmarks.  
 **Bulletproof Answer:**  
-*"We maintained strict scientific integrity throughout this research. As stated explicitly in Section I and Section X of our IEEE manuscript, our current contribution is the formal benchmark design, the operational taxonomy, and the experimental protocol. Rather than fabricating synthetic numbers or claiming an illustrative test is an empirical result, we marked all empirical metrics as pending until the pilot annotation round is complete and adjudicated."*
+*"In user reviews, multiple sentences from the same review often share identical vocabulary, product names, and author writing style. If random sentence splitting were used, sentence 1 of a review could end up in training while sentence 2 is in test, creating severe intra-review data leakage. We enforce **review-level group partitioning** ($70/15/15$ split) using salted cryptographic hashing of `review_id` (seed=42). This mathematically guarantees that all sentences from a review reside in the exact same partition with zero overlap across train, val, and test."*
 
 ---
 
@@ -84,13 +84,21 @@ Therefore, we restricted our sentence-level taxonomy to four intrinsic classes: 
 
 ---
 
-### Q7: Why didn't you train the TF-IDF + Linear SVM model on the dataset right now?
-**Examiner intent:** Testing if you understand supervised learning requirements and circular pseudo-labeling.  
+### Q7: How does your benchmark handle Model Arm 1 (Linear SVM) and Model Arm 2 (RoBERTa)?
+**Examiner intent:** Checking whether you understand supervised training requirements and Mode A vs Mode B.  
 **Bulletproof Answer:**  
-*"Supervised machine learning requires genuine, human-verified ground-truth requirement labels.
-1. The SemEval dataset only provides sentiment polarity labels (Positive/Negative/Neutral), not requirement labels. Training an SVM on sentiment would train a sentiment classifier, not a requirements classifier.
-2. If we trained an SVM on our regex rule outputs, the model would simply approximate the regex heuristics—a circular pseudo-labeling flaw that yields meaningless accuracy figures.
-Therefore, we implemented the rule-based heuristic as the transparent baseline, and reserved SVM and RoBERTa training until the pilot human double-annotation and adjudication are complete."*
+*"We support two transparent modes:
+- **Mode A (Human Gold Benchmark):** Evaluated strictly on human-adjudicated labels. If fewer than 4 examples per class exist in training, training is safely blocked with exact counts reported. No circular pseudo-labeling is permitted.
+- **Mode B (Exploratory Weak AI Supervision):** Uses rule-based weak supervision labels on the 70/15/15 review split to train Linear SVM and verify the full MLOps pipeline: generating 95% bootstrap confidence intervals (1,000 resamples), a 4×4 confusion matrix, and misclassification error analysis."*
+
+---
+
+### Q8: What is the primary evaluation metric and how is the 95% bootstrap confidence interval computed?
+**Examiner intent:** Checking statistical evaluation knowledge.  
+**Bulletproof Answer:**  
+*"The primary metric is **Macro-F1**, calculated as the unweighted arithmetic mean of F1 scores across the four categories:
+$$\text{Macro-F1} = \frac{1}{4} \sum_{c=1}^{4} \text{F1}_c$$
+To measure statistical significance and variance on test data without assuming Gaussian distributions, we compute a non-parametric 95% bootstrap confidence interval using 1,000 percentile bootstrap resamples (seed=42) taking the 2.5th and 97.5th percentiles."*
 
 ---
 
@@ -98,32 +106,19 @@ Therefore, we implemented the rule-based heuristic as the transparent baseline, 
 
 Follow this exact walkthrough during your viva to demonstrate the restructured 3-section academic dashboard:
 
-1. **Step 1: Start Both Servers on Windows**
-   - Terminal 1 (Backend API): `npm run server` (Express listening on `http://localhost:5000` with `gemini-2.5-flash`)
-   - Terminal 2 (Frontend UI): `npm run dev` (Vite listening on `http://localhost:3000` / `5173`)
+1. **Section 1: Implementation (Default Landing Page):**
+   - Show the curated 45-set loaded automatically from SemEval.
+   - Point out the 4-Model Comparative Board (Heuristic, Linear SVM, RoBERTa-base, Gemini).
+   - Show live Gemini classification with zero-shot and few-shot ($k \in \{0, 2, 4, 8\}$).
+   - Use the Custom Feedback Tester with a tricky sentence:
+     - *"The screen goes black when I plug in the HDMI cable"* $\to$ Classifies as **PAIN_POINT**.
+     - *"Could you please add dark mode support in the next update?"* $\to$ Classifies as **EXPLICIT_NEED**.
+     - *"I wish I didn't have to keep a notebook next to my bed to remember tasks"* $\to$ Classifies as **IMPLICIT_NEED**.
 
-2. **Step 2: Section 1 — Implementation (Default Landing Page)**
-   - The application opens directly into the working classification pipeline.
-   - Point out the active dataset: `semeval2015_research_ready.csv` (Curated 45-Set).
-   - Use the record navigator (`< Prev`, `Next >`) to select sentence #1 (*"Please add an option to adjust screen backlight..."*).
-   - Select few-shot arm $k \in \{0, 2, 4, 8\}$ (default: $k=0$ zero-shot).
-   - Click **"Run Heuristic"** $\rightarrow$ Show the matched syntactic cues and rationale on the left card.
-   - Click **"Classify with Gemini"** $\rightarrow$ Show the `gemini-2.5-flash` structured output on the right card (Sentiment badge, Requirement category badge, verbatim evidence quote, scientific explanation, reported confidence).
-   - Highlight the **Independence Rule**: Feature requests take precedence even with negative sentiment.
-   - Click **"Test Custom Sentence"** to demonstrate the integrated sandbox:
-     - *"Please add support for UPI and PhonePe"* $\rightarrow$ Both models classify as **EXPLICIT_NEED**.
-     - *"I have to carry two chargers because the battery doesn't last"* $\rightarrow$ **IMPLICIT_NEED** (Sentiment: **NEGATIVE**).
-     - *"App freezes and crashes every time I upload a large file"* $\rightarrow$ **PAIN_POINT** (Sentiment: **NEGATIVE**).
-     - *"Great laptop, five stars"* $\rightarrow$ **NON_ACTIONABLE** (Sentiment: **POSITIVE**).
-   - Show the compact dataset switcher: Switch between **Curated (45)** and **Full (4,161)** without leaving the screen.
+2. **Section 2: Research:**
+   - **Taxonomy Tab:** Explain the 4 categories, inclusion/exclusion rationale, and boundary rules.
+   - **Annotation Tab:** Demonstrate Coder A vs Coder B annotation and live nominal Krippendorff's alpha.
+   - **Benchmark Tab:** Show Table VI with the Mode A / Mode B switch, 4×4 confusion matrix, and the boundary confusion between Implicit Need and Pain Point.
 
-3. **Step 3: Section 2 — Research (Methodology & Calibration)**
-   - Navigate to the **Research** tab:
-     - **Sub-tab 1 (Taxonomy & RQ1–RQ4):** Explain the 4-class taxonomy, operational boundary rules, and research questions.
-     - **Sub-tab 2 (Human Annotation & Alpha):** Demonstrate independent double-coding (Annotator A vs Annotator B), disagreement detection, adjudication, and live nominal Krippendorff's alpha reliability scoring.
-     - **Sub-tab 3 (Evaluation & Benchmark):** Walk through Table VI comparing our implemented heuristic baseline against few-shot LLMs and pending RoBERTa fine-tuning, emphasizing that pending cells are preserved without synthetic numbers.
-
-4. **Step 4: Section 3 — Documentation (Manuscript & System Specs)**
-   - Navigate to the **Documentation** tab:
-     - Show the research manuscript details (*"Designing a Benchmark for Classifying Explicit Needs, Implicit Needs, and Pain Points in User-Generated Content"*).
-     - Show the three-tier system architecture, technical stack, SemEval-2015 Task 12 ABSA provenance, and backend API contracts.
+3. **Section 3: Documentation:**
+   - Show the IEEE paper overview, dataset provenance and attribution, and mathematical appendix.

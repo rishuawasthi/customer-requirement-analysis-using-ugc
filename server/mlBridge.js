@@ -67,7 +67,7 @@ function runPythonCli(action, extraArgs = [], stdinData = null) {
 async function callMlEndpoint(endpoint, method = 'GET', body = null, cliAction = null, cliArgs = []) {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300);
+    const timeoutId = setTimeout(() => controller.abort(), 200);
 
     const headers = { 'Content-Type': 'application/json' };
     const res = await fetch(`${ML_HTTP_URL}${endpoint}`, {
@@ -93,11 +93,11 @@ async function callMlEndpoint(endpoint, method = 'GET', body = null, cliAction =
   throw new Error(`ML service unavailable for endpoint ${endpoint}`);
 }
 
-export async function getMlStatus() {
-  return await callMlEndpoint('/ml/status', 'GET', null, 'status');
+export async function getMlStatus(mode = 'gold') {
+  return await callMlEndpoint(`/ml/status?mode=${mode}`, 'GET', null, 'status', ['--mode', mode]);
 }
 
-export async function syncDatasetWithMl(records) {
+export async function syncDatasetWithMl(records, mode = 'gold') {
   const dataFilePath = path.join(__dirname, 'data', 'adjudicated_dataset.json');
   fs.mkdirSync(path.dirname(dataFilePath), { recursive: true });
   fs.writeFileSync(dataFilePath, JSON.stringify(records, null, 2), 'utf-8');
@@ -105,10 +105,19 @@ export async function syncDatasetWithMl(records) {
   return await callMlEndpoint(
     '/ml/sync-dataset',
     'POST',
-    { records },
+    { records, mode },
     'sync',
-    ['--data-file', dataFilePath]
+    ['--data-file', dataFilePath, '--mode', mode]
   );
+}
+
+export async function generateSplits(records = null) {
+  const dataFilePath = path.join(__dirname, 'data', 'adjudicated_dataset.json');
+  if (records) {
+    fs.mkdirSync(path.dirname(dataFilePath), { recursive: true });
+    fs.writeFileSync(dataFilePath, JSON.stringify(records, null, 2), 'utf-8');
+  }
+  return await callMlEndpoint('/ml/splits', 'POST', { records }, 'split', ['--data-file', dataFilePath]);
 }
 
 export async function classifyWithSvm(text) {
@@ -121,14 +130,16 @@ export async function classifyWithSvm(text) {
   );
 }
 
-export async function trainSvm() {
-  const dataFilePath = path.join(__dirname, 'data', 'adjudicated_dataset.json');
+export async function trainSvm(mode = 'gold') {
+  const dataFilePath = mode === 'exploratory'
+    ? path.join(__dirname, 'ml', 'data', 'ai_exploratory_dataset.json')
+    : path.join(__dirname, 'data', 'adjudicated_dataset.json');
   return await callMlEndpoint(
-    '/ml/svm/train',
+    `/ml/svm/train?mode=${mode}`,
     'POST',
-    {},
+    { mode },
     'train-svm',
-    ['--data-file', dataFilePath]
+    ['--data-file', dataFilePath, '--mode', mode]
   );
 }
 
@@ -142,14 +153,16 @@ export async function classifyWithRoberta(text) {
   );
 }
 
-export async function trainRoberta() {
-  const dataFilePath = path.join(__dirname, 'data', 'adjudicated_dataset.json');
+export async function trainRoberta(mode = 'gold') {
+  const dataFilePath = mode === 'exploratory'
+    ? path.join(__dirname, 'ml', 'data', 'ai_exploratory_dataset.json')
+    : path.join(__dirname, 'data', 'adjudicated_dataset.json');
   return await callMlEndpoint(
-    '/ml/roberta/train',
+    `/ml/roberta/train?mode=${mode}`,
     'POST',
-    {},
+    { mode },
     'train-roberta',
-    ['--data-file', dataFilePath]
+    ['--data-file', dataFilePath, '--mode', mode]
   );
 }
 
@@ -160,5 +173,15 @@ export async function classifyAllModels(text) {
     { text },
     'classify-all',
     ['--text', text]
+  );
+}
+
+export async function getMlEvaluation(mode = 'gold') {
+  return await callMlEndpoint(
+    `/ml/evaluation?mode=${mode}`,
+    'GET',
+    null,
+    'evaluate',
+    ['--mode', mode]
   );
 }

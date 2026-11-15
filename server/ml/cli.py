@@ -12,17 +12,35 @@ from typing import Dict, Any
 from .split_manager import (
     get_dataset_statistics,
     load_adjudicated_data,
-    save_adjudicated_data
+    save_adjudicated_data,
+    generate_split_manifests,
+    load_manifest
 )
 from .svm_arm import SvmClassifierArm
 from .roberta_arm import RobertaClassifierArm
+from .evaluation import calculate_metrics, bootstrap_macro_f1_ci, compute_confusion_matrix_data
 
 
 def main():
     parser = argparse.ArgumentParser(description="Academic ML Service CLI")
-    parser.add_argument("--action", required=True, choices=["status", "sync", "classify-svm", "classify-roberta", "classify-all", "train-svm", "train-roberta"])
+    parser.add_argument(
+        "--action",
+        required=True,
+        choices=[
+            "status",
+            "split",
+            "sync",
+            "classify-svm",
+            "classify-roberta",
+            "classify-all",
+            "train-svm",
+            "train-roberta",
+            "evaluate"
+        ]
+    )
     parser.add_argument("--text", default="", help="Input feedback text for classification")
     parser.add_argument("--data-file", default="", help="Path to JSON records file for sync or training")
+    parser.add_argument("--mode", default="gold", choices=["gold", "exploratory"], help="Evaluation/training mode")
     args = parser.parse_args()
 
     svm_arm = SvmClassifierArm()
@@ -30,18 +48,27 @@ def main():
 
     if args.action == "status":
         records = load_adjudicated_data(args.data_file or None)
-        stats = get_dataset_statistics(records)
+        stats_gold = get_dataset_statistics(records, mode='gold')
+        stats_exploratory = get_dataset_statistics(records, mode='exploratory')
         output = {
             "status": "ok",
-            "svm_arm": svm_arm.get_status(records),
-            "roberta_arm": roberta_arm.get_status(records),
-            "dataset_statistics": stats
+            "mode": args.mode,
+            "svm_arm": svm_arm.get_status(records, mode=args.mode),
+            "roberta_arm": roberta_arm.get_status(records, mode=args.mode),
+            "dataset_statistics": {
+                "gold": stats_gold,
+                "exploratory": stats_exploratory
+            }
         }
         print(json.dumps(output, indent=2))
 
+    elif args.action == "split":
+        records = load_adjudicated_data(args.data_file or None)
+        result = generate_split_manifests(records)
+        print(json.dumps(result, indent=2))
+
     elif args.action == "sync":
         if not args.data_file:
-            # Read from stdin
             payload = json.load(sys.stdin)
             records = payload.get("records", [])
         else:
@@ -49,12 +76,14 @@ def main():
                 records = json.load(f)
 
         save_path = save_adjudicated_data(records)
-        stats = get_dataset_statistics(records)
+        stats = get_dataset_statistics(records, mode=args.mode)
+        split_res = generate_split_manifests(records)
         output = {
             "success": True,
             "saved_records": len(records),
             "path": save_path,
-            "statistics": stats
+            "statistics": stats,
+            "split_manifests": split_res
         }
         print(json.dumps(output, indent=2))
 
@@ -77,13 +106,23 @@ def main():
 
     elif args.action == "train-svm":
         records = load_adjudicated_data(args.data_file or None)
-        res = svm_arm.train(records)
+        res = svm_arm.train(records, mode=args.mode)
         print(json.dumps(res, indent=2))
 
     elif args.action == "train-roberta":
         records = load_adjudicated_data(args.data_file or None)
-        res = roberta_arm.train(records)
+        res = roberta_arm.train(records, mode=args.mode)
         print(json.dumps(res, indent=2))
+
+    elif args.action == "evaluate":
+        test_records = load_manifest("test")
+        output = {
+            "mode": args.mode,
+            "test_sample_count": len(test_records),
+            "svm": svm_arm.get_status(mode=args.mode).get("evaluation"),
+            "roberta": roberta_arm.get_status(mode=args.mode).get("evaluation")
+        }
+        print(json.dumps(output, indent=2))
 
 
 if __name__ == "__main__":

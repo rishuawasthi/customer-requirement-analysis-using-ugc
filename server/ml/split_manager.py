@@ -1,7 +1,7 @@
 """
 Academic Split Manager for Customer Requirement Analysis
 Ensures review_id-based group splitting, prevents intra-review data leakage,
-and enforces dataset eligibility requirements for supervised model arms.
+generates split manifest files, and enforces dataset eligibility requirements for supervised model arms.
 """
 
 import os
@@ -15,7 +15,13 @@ MIN_RECORDS_PER_CLASS = 4  # Minimum required adjudicated training records per c
 SPLIT_RATIOS = {'train': 0.70, 'val': 0.15, 'test': 0.15}
 RANDOM_SEED = 42
 
-DEFAULT_DATA_PATH = os.path.join(os.path.dirname(__file__), 'data', 'adjudicated_dataset.json')
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+DEFAULT_DATA_PATH = os.path.join(DATA_DIR, 'adjudicated_dataset.json')
+EXPLORATORY_DATA_PATH = os.path.join(DATA_DIR, 'ai_exploratory_dataset.json')
+
+TRAIN_MANIFEST_PATH = os.path.join(DATA_DIR, 'train_manifest.json')
+VAL_MANIFEST_PATH = os.path.join(DATA_DIR, 'val_manifest.json')
+TEST_MANIFEST_PATH = os.path.join(DATA_DIR, 'test_manifest.json')
 
 
 def assign_review_to_split(review_id: str, seed: int = RANDOM_SEED) -> str:
@@ -51,10 +57,78 @@ def partition_records(records: List[Dict[str, Any]]) -> Dict[str, List[Dict[str,
     return splits
 
 
-def get_dataset_statistics(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+def verify_zero_leakage(splits: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
+    """
+    Verifies that no review_id appears in more than one partition.
+    Returns status and overlap sets.
+    """
+    train_revs = set(r.get('reviewId') or r.get('review_id') or r.get('id') for r in splits['train'])
+    val_revs = set(r.get('reviewId') or r.get('review_id') or r.get('id') for r in splits['val'])
+    test_revs = set(r.get('reviewId') or r.get('review_id') or r.get('id') for r in splits['test'])
+
+    train_val_overlap = train_revs.intersection(val_revs)
+    train_test_overlap = train_revs.intersection(test_revs)
+    val_test_overlap = val_revs.intersection(test_revs)
+
+    is_clean = len(train_val_overlap) == 0 and len(train_test_overlap) == 0 and len(val_test_overlap) == 0
+
+    return {
+        'zero_leakage': is_clean,
+        'train_unique_reviews': len(train_revs),
+        'val_unique_reviews': len(val_revs),
+        'test_unique_reviews': len(test_revs),
+        'overlaps': {
+            'train_val': list(train_val_overlap),
+            'train_test': list(train_test_overlap),
+            'val_test': list(val_test_overlap)
+        }
+    }
+
+
+def generate_split_manifests(
+    records: List[Dict[str, Any]],
+    output_dir: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Partitions the given dataset by review_id and writes out manifest files
+    for train, val, and test partitions, alongside leakage verification.
+    """
+    target_dir = output_dir or DATA_DIR
+    os.makedirs(target_dir, exist_ok=True)
+
+    splits = partition_records(records)
+    leakage_check = verify_zero_leakage(splits)
+
+    manifest_paths = {
+        'train': os.path.join(target_dir, 'train_manifest.json'),
+        'val': os.path.join(target_dir, 'val_manifest.json'),
+        'test': os.path.join(target_dir, 'test_manifest.json')
+    }
+
+    for split_name, file_path in manifest_paths.items():
+        split_records = splits[split_name]
+        manifest_data = {
+            'split': split_name,
+            'count': len(split_records),
+            'records': split_records
+        }
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(manifest_data, f, indent=2, ensure_ascii=False)
+
+    return {
+        'success': True,
+        'manifest_paths': manifest_paths,
+        'counts': {k: len(v) for k, v in splits.items()},
+        'leakage_verification': leakage_check
+    }
+
+
+def get_dataset_statistics(records: List[Dict[str, Any]], mode: str = 'gold') -> Dict[str, Any]:
     """
     Audits the current dataset and reports counts, adjudicated labels,
     class distribution per split, and eligibility for supervised training.
+    mode='gold': considers only human-adjudicated labels.
+    mode='exploratory': considers weak/exploratory labels.
     """
     total = len(records)
     adjudicated_records = []
@@ -62,17 +136,26 @@ def get_dataset_statistics(records: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     for r in records:
         ha = r.get('humanAnnotations') or {}
-        # Independent annotations
         if ha.get('annotatorA') or ha.get('annotatorB'):
             annotated_records.append(r)
-        # Adjudicated ground truth
-        adj = ha.get('adjudicated') or r.get('adjudicated')
-        if adj and adj in TAXONOMY_CATEGORIES:
+
+        label = None
+        if mode == 'gold':
+            adj = ha.get('adjudicated') or r.get('adjudicated')
+            if adj and adj in TAXONOMY_CATEGORIES:
+                label = adj
+        else:
+            # Exploratory mode: accept predictedCategory or exploratoryLabel or adjudicated
+            label = r.get('exploratoryLabel') or r.get('predictedCategory') or ha.get('adjudicated') or r.get('adjudicated')
+            if label not in TAXONOMY_CATEGORIES:
+                label = None
+
+        if label:
             adjudicated_records.append({
                 'id': r.get('id'),
                 'text': r.get('text', '').strip(),
                 'review_id': r.get('reviewId') or r.get('review_id') or r.get('id'),
-                'label': adj
+                'label': label
             })
 
     splits = partition_records(adjudicated_records)
@@ -96,9 +179,10 @@ def get_dataset_statistics(records: List[Dict[str, Any]]) -> Dict[str, Any]:
             is_eligible = False
 
     return {
+        'mode': mode,
         'total_records': total,
         'dual_annotated_count': len(annotated_records),
-        'adjudicated_count': len(adjudicated_records),
+        'labelled_count': len(adjudicated_records),
         'splits': {
             'train': {
                 'total': len(splits['train']),
@@ -145,3 +229,17 @@ def save_adjudicated_data(records: List[Dict[str, Any]], path: Optional[str] = N
     with open(target_path, 'w', encoding='utf-8') as f:
         json.dump(records, f, indent=2, ensure_ascii=False)
     return target_path
+
+
+def load_manifest(split: str, target_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Loads records for a specific partition manifest ('train', 'val', or 'test')."""
+    dir_path = target_dir or DATA_DIR
+    manifest_file = os.path.join(dir_path, f"{split}_manifest.json")
+    if os.path.exists(manifest_file):
+        try:
+            with open(manifest_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get('records', [])
+        except Exception:
+            return []
+    return []

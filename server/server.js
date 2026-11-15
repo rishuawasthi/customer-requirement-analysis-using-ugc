@@ -8,11 +8,13 @@ import { PROMPT_VERSION, getFewShotExemplarStatus } from './prompts.js';
 import {
   getMlStatus,
   syncDatasetWithMl,
+  generateSplits,
   classifyWithSvm,
   trainSvm,
   classifyWithRoberta,
   trainRoberta,
-  classifyAllModels
+  classifyAllModels,
+  getMlEvaluation
 } from './mlBridge.js';
 
 // Resolve directory name
@@ -65,11 +67,12 @@ app.get('/api/health', async (req, res) => {
 
 /**
  * Machine Learning Subsystem Status
- * GET /api/ml/status
+ * GET /api/ml/status?mode=gold|exploratory
  */
 app.get('/api/ml/status', async (req, res) => {
   try {
-    const status = await getMlStatus();
+    const mode = req.query.mode === 'exploratory' ? 'exploratory' : 'gold';
+    const status = await getMlStatus(mode);
     return res.json({ success: true, ...status });
   } catch (err) {
     return res.status(503).json({
@@ -81,13 +84,40 @@ app.get('/api/ml/status', async (req, res) => {
 });
 
 /**
+ * Split Manifests & Zero-Leakage Verification
+ * GET /api/ml/splits
+ */
+app.get('/api/ml/splits', async (req, res) => {
+  try {
+    const result = await generateSplits();
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Benchmark Evaluation Results Table VI
+ * GET /api/ml/evaluation?mode=gold|exploratory
+ */
+app.get('/api/ml/evaluation', async (req, res) => {
+  try {
+    const mode = req.query.mode === 'exploratory' ? 'exploratory' : 'gold';
+    const result = await getMlEvaluation(mode);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * Human Annotation Synchronization Endpoint
  * POST /api/annotations/sync
- * Body: { records: Array<FeedbackRecord> }
+ * Body: { records: Array<FeedbackRecord>, mode?: 'gold' | 'exploratory' }
  */
 app.post('/api/annotations/sync', async (req, res) => {
   try {
-    const { records = [] } = req.body || {};
+    const { records = [], mode = 'gold' } = req.body || {};
     if (!Array.isArray(records)) {
       return res.status(400).json({ success: false, error: 'Expected records array' });
     }
@@ -97,7 +127,7 @@ app.post('/api/annotations/sync', async (req, res) => {
     fs.writeFileSync(annotationsPath, JSON.stringify(records, null, 2), 'utf-8');
 
     // Forward to Python ML engine for review_id partitioning and stats update
-    const mlSync = await syncDatasetWithMl(records);
+    const mlSync = await syncDatasetWithMl(records, mode);
 
     return res.json({
       success: true,
@@ -110,6 +140,35 @@ app.post('/api/annotations/sync', async (req, res) => {
       code: 'ANNOTATION_SYNC_ERROR',
       error: err.message
     });
+  }
+});
+
+/**
+ * Generate Weak AI Exploratory Dataset for Mode B
+ * POST /api/ml/exploratory/generate
+ * Body: { records: Array<FeedbackRecord> }
+ */
+app.post('/api/ml/exploratory/generate', async (req, res) => {
+  try {
+    const { records = [] } = req.body || {};
+    const exploratoryRecords = records.map(r => ({
+      ...r,
+      exploratoryLabel: r.predictedCategory || (r.humanAnnotations && r.humanAnnotations.adjudicated) || 'NON_ACTIONABLE'
+    }));
+
+    const exploratoryPath = path.join(__dirname, 'ml', 'data', 'ai_exploratory_dataset.json');
+    fs.mkdirSync(path.dirname(exploratoryPath), { recursive: true });
+    fs.writeFileSync(exploratoryPath, JSON.stringify(exploratoryRecords, null, 2), 'utf-8');
+
+    const splitRes = await generateSplits(exploratoryRecords);
+
+    return res.json({
+      success: true,
+      message: `Generated Mode B exploratory dataset with ${exploratoryRecords.length} records.`,
+      splits: splitRes
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -133,16 +192,16 @@ app.get('/api/annotations', (req, res) => {
 /**
  * Supervised Training Endpoints
  * POST /api/ml/train
- * Body: { model: 'svm' | 'roberta' }
+ * Body: { model: 'svm' | 'roberta', mode?: 'gold' | 'exploratory' }
  */
 app.post('/api/ml/train', async (req, res) => {
   try {
-    const { model = 'svm' } = req.body || {};
+    const { model = 'svm', mode = 'gold' } = req.body || {};
     let trainResult;
     if (model === 'svm') {
-      trainResult = await trainSvm();
+      trainResult = await trainSvm(mode);
     } else if (model === 'roberta') {
-      trainResult = await trainRoberta();
+      trainResult = await trainRoberta(mode);
     } else {
       return res.status(400).json({ success: false, error: "Invalid model arm. Must be 'svm' or 'roberta'." });
     }
