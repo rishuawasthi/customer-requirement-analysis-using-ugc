@@ -59,7 +59,7 @@ class SvmClassifierArm:
 
     def get_status(self, records: Optional[List[Dict[str, Any]]] = None, mode: str = 'gold') -> Dict[str, Any]:
         """Reports model artifact readiness, evaluation status, and training eligibility."""
-        stats = get_dataset_statistics(records or load_adjudicated_data(), mode=mode)
+        stats = get_dataset_statistics(records if records is not None else load_adjudicated_data(), mode=mode)
         eval_data = None
         if os.path.exists(EVAL_PATH):
             try:
@@ -238,7 +238,8 @@ class SvmClassifierArm:
 
     def evaluate(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Evaluates loaded SVM on given records."""
-        if not self.is_loaded or self.model is None or self.vectorizer is None:
+        if (not self.is_loaded or self.model is None or self.vectorizer is None
+                or not self.metadata or self.metadata.get('mode') != 'gold'):
             return {'status': 'awaiting_data', 'message': 'Model is not trained yet.'}
 
         y_true = [r.get('label') or r.get('adjudicated') for r in records]
@@ -278,7 +279,7 @@ class SvmClassifierArm:
                 'model': 'LinearSVC (Unigram+Bigram TF-IDF)',
                 'method': 'Traditional ML (TF-IDF + Linear SVM)',
                 'status': 'awaiting_data',
-                'explanation': 'Linear SVM arm awaiting adjudicated training data.',
+                'explanation': 'Linear SVM gold-mode model is not trained. Exploratory-only artifacts are not used for formal classification.',
                 'per_class_scores': {},
                 'decision_scores': {}
             }
