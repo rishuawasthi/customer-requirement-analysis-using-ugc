@@ -28,8 +28,17 @@ const CATEGORIES: { key: RequirementCategory; label: string; color: string; soft
   { key: 'NON_ACTIONABLE', label: 'Non-actionable', color: '#8b5cf6', soft: 'bg-violet-50 text-violet-700 border-violet-100', icon: MessageCircle }
 ];
 
-const getCategory = (r: FeedbackRecord): RequirementCategory | undefined =>
-  r.humanAnnotations?.adjudicated || r.predictedCategory || r.geminiResult?.requirement_category;
+type LabelSource = 'adjudicated' | 'heuristic' | 'gemini' | 'svm' | 'roberta';
+const SOURCE_LABELS: Record<LabelSource, string> = { adjudicated: 'Human-adjudicated labels', heuristic: 'Rule-based heuristic predictions', gemini: 'Gemini predictions', svm: 'TF-IDF + Linear SVM predictions', roberta: 'Fine-tuned RoBERTa predictions' };
+const getCategoryForSource = (r: FeedbackRecord, source: LabelSource): RequirementCategory | undefined => {
+  switch (source) {
+    case 'adjudicated': return r.humanAnnotations?.adjudicated;
+    case 'heuristic': return r.predictedCategory;
+    case 'gemini': return r.geminiResult?.status === 'success' ? r.geminiResult.requirement_category : undefined;
+    case 'svm': return r.svmResult?.status === 'success' ? r.svmResult.requirement_category : undefined;
+    case 'roberta': return r.robertaResult?.status === 'success' ? r.robertaResult.requirement_category : undefined;
+  }
+};
 
 export const FeedbackDashboard: React.FC<DashboardProps> = ({
   records, sourceName, onUpdateRecords, onDatasetLoaded, onAnalyzeAll, onOpenSentenceAnalysis
@@ -37,6 +46,7 @@ export const FeedbackDashboard: React.FC<DashboardProps> = ({
   const fileRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL');
+  const [labelSource, setLabelSource] = useState<LabelSource>('heuristic');
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [showDetails, setShowDetails] = useState<FeedbackRecord | null>(null);
@@ -47,17 +57,24 @@ export const FeedbackDashboard: React.FC<DashboardProps> = ({
     const base: Record<RequirementCategory, number> = {
       EXPLICIT_NEED: 0, IMPLICIT_NEED: 0, PAIN_POINT: 0, NON_ACTIONABLE: 0
     };
-    records.forEach(r => { const category = getCategory(r); if (category) base[category] += 1; });
+    records.forEach(r => { const category = getCategoryForSource(r, labelSource); if (category) base[category] += 1; });
     return base;
-  }, [records]);
+  }, [records, labelSource]);
 
   const classified = CATEGORIES.reduce((sum, c) => sum + counts[c.key], 0);
+  const sourceAvailability: Record<LabelSource, boolean> = {
+    adjudicated: records.some(r => !!r.humanAnnotations?.adjudicated),
+    heuristic: records.some(r => !!r.predictedCategory),
+    gemini: records.some(r => r.geminiResult?.status === 'success'),
+    svm: records.some(r => r.svmResult?.status === 'success'),
+    roberta: records.some(r => r.robertaResult?.status === 'success')
+  };
   const filtered = useMemo(() => records.filter(r => {
     const q = search.trim().toLowerCase();
     const matches = !q || r.text.toLowerCase().includes(q) || r.id.toLowerCase().includes(q);
-    const category = getCategory(r);
+    const category = getCategoryForSource(r, labelSource);
     return matches && (filter === 'ALL' || (filter === 'UNCLASSIFIED' ? !category : category === filter));
-  }), [records, search, filter]);
+  }), [records, search, filter, labelSource]);
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
   const pct = (n: number) => records.length ? (n / records.length * 100) : 0;
@@ -136,7 +153,8 @@ export const FeedbackDashboard: React.FC<DashboardProps> = ({
 
       <section className="grid xl:grid-cols-[1fr_1.12fr_0.78fr] gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between"><h2 className="font-bold text-slate-900">Classification Distribution</h2><span className="text-[10px] text-slate-400">Current dataset</span></div>
+          <div className="flex items-center justify-between"><h2 className="font-bold text-slate-900">Classification Distribution</h2><select value={labelSource} onChange={e => { setLabelSource(e.target.value as LabelSource); setPage(1); }} className="max-w-[210px] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-600">{(Object.keys(SOURCE_LABELS) as LabelSource[]).map(source => <option key={source} value={source} disabled={!sourceAvailability[source]}>{SOURCE_LABELS[source]}{sourceAvailability[source] ? '' : ' (no results)'}</option>)}</select></div>
+          <p className="mt-2 text-[10px] text-slate-500">Showing <strong>{SOURCE_LABELS[labelSource]}</strong>. Label sources are never combined.</p>
           {classified ? <div className="flex flex-col sm:flex-row items-center gap-5 mt-5">
             <div className="relative w-40 h-40 rounded-full shrink-0" style={{background: `conic-gradient(${donut.parts.join(', ')})`}}><div className="absolute inset-[25px] rounded-full bg-white flex flex-col items-center justify-center"><strong className="text-xl text-slate-900">{classified.toLocaleString()}</strong><span className="text-[10px] text-slate-500">Classified</span></div></div>
             <div className="space-y-3 w-full">{CATEGORIES.map(c=><div key={c.key} className="flex items-center justify-between gap-2 text-xs"><span className="flex items-center gap-2 text-slate-600"><i className="w-2.5 h-2.5 rounded-sm" style={{background:c.color}}/>{c.label}</span><strong className="text-slate-800 tabular-nums">{counts[c.key].toLocaleString()} <span className="text-slate-400 font-normal">({(pct(counts[c.key])).toFixed(1)}%)</span></strong></div>)}</div>
@@ -162,10 +180,10 @@ export const FeedbackDashboard: React.FC<DashboardProps> = ({
             </div>
             {showFilters && <div className="mt-3 flex flex-wrap gap-2 items-center"><label className="text-xs text-slate-500">Category</label><select value={filter} onChange={e=>{setFilter(e.target.value);setPage(1)}} className="h-9 rounded-lg border border-slate-200 px-3 text-xs bg-white"><option value="ALL">All records</option><option value="UNCLASSIFIED">Unclassified</option>{CATEGORIES.map(c=><option key={c.key} value={c.key}>{c.label}</option>)}</select><button onClick={()=>{setFilter('ALL');setSearch('');setPage(1)}} className="text-xs text-blue-600 font-semibold">Clear filters</button></div>}
           </div>
-          <div className="overflow-x-auto"><table className="w-full text-left min-w-[650px]"><thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3 w-12">#</th><th className="px-3 py-3">Feedback text</th><th className="px-3 py-3">Predicted category</th><th className="px-3 py-3">Human label</th><th className="px-4 py-3 text-right">Details</th></tr></thead><tbody className="divide-y divide-slate-100">{visible.map((r,i)=>{const cat=getCategory(r);const meta=CATEGORIES.find(c=>c.key===cat);return <tr key={r.id} className="hover:bg-blue-50/40"><td className="px-5 py-3 text-xs text-slate-400">{(page-1)*pageSize+i+1}</td><td className="px-3 py-3 max-w-[430px]"><p className="text-xs text-slate-700 line-clamp-2">{r.text}</p><p className="text-[10px] text-slate-400 mt-1">{r.domain || 'Dataset record'} · {r.id.slice(0,18)}</p></td><td className="px-3 py-3">{meta?<span className={`inline-flex px-2.5 py-1 rounded-full border text-[10px] font-semibold ${meta.soft}`}>{meta.label}</span>:<span className="text-[10px] text-slate-400">Not classified</span>}</td><td className="px-3 py-3 text-xs text-slate-600">{r.humanAnnotations?.adjudicated ? <span className="text-emerald-700 font-semibold">Adjudicated</span> : <span className="text-slate-400">—</span>}</td><td className="px-4 py-3 text-right"><button onClick={()=>setShowDetails(r)} className="p-2 rounded-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600" aria-label="View feedback details"><Eye size={16}/></button></td></tr>})}{!visible.length&&<tr><td colSpan={5} className="py-12 text-center text-sm text-slate-400">No feedback matches your search or filter.</td></tr>}</tbody></table></div>
+          <div className="overflow-x-auto"><table className="w-full text-left min-w-[650px]"><thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3 w-12">#</th><th className="px-3 py-3">Feedback text</th><th className="px-3 py-3">Category · {SOURCE_LABELS[labelSource]}</th><th className="px-3 py-3">Human review status</th><th className="px-4 py-3 text-right">Details</th></tr></thead><tbody className="divide-y divide-slate-100">{visible.map((r,i)=>{const cat=getCategoryForSource(r,labelSource);const meta=CATEGORIES.find(c=>c.key===cat);return <tr key={r.id} className="hover:bg-blue-50/40"><td className="px-5 py-3 text-xs text-slate-400">{(page-1)*pageSize+i+1}</td><td className="px-3 py-3 max-w-[430px]"><p className="text-xs text-slate-700 line-clamp-2">{r.text}</p><p className="text-[10px] text-slate-400 mt-1">{r.domain || 'Dataset record'} · {r.id.slice(0,18)}</p></td><td className="px-3 py-3">{meta?<span className={`inline-flex px-2.5 py-1 rounded-full border text-[10px] font-semibold ${meta.soft}`}>{meta.label}</span>:<span className="text-[10px] text-slate-400">Not classified</span>}</td><td className="px-3 py-3 text-xs text-slate-600">{r.humanAnnotations?.adjudicated ? <span className="text-emerald-700 font-semibold">Adjudicated</span> : r.humanAnnotations?.annotatorA || r.humanAnnotations?.annotatorB ? <span className="text-amber-700">Coder labels pending</span> : <span className="text-slate-400">No human label</span>}</td><td className="px-4 py-3 text-right"><button onClick={()=>setShowDetails(r)} className="p-2 rounded-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600" aria-label="View feedback details"><Eye size={16}/></button></td></tr>})}{!visible.length&&<tr><td colSpan={5} className="py-12 text-center text-sm text-slate-400">No feedback matches your search or filter.</td></tr>}</tbody></table></div>
           <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-3"><span className="text-[11px] text-slate-500">Showing {filtered.length ? (page-1)*pageSize+1 : 0}–{Math.min(page*pageSize,filtered.length)} of {filtered.length.toLocaleString()}</span><div className="flex items-center gap-2"><button disabled={page<=1} onClick={()=>setPage(p=>p-1)} className="p-2 border border-slate-200 rounded-lg disabled:opacity-30"><ChevronLeft size={15}/></button><span className="text-xs text-slate-600">{page} / {pages}</span><button disabled={page>=pages} onClick={()=>setPage(p=>p+1)} className="p-2 border border-slate-200 rounded-lg disabled:opacity-30"><ChevronRight size={15}/></button></div></div>
         </div>
-        <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5"><div className="flex items-center gap-2"><Sparkles size={18} className="text-blue-600"/><h2 className="font-bold text-slate-900">Actions</h2></div><div className="space-y-2 mt-5"><button onClick={exportData} disabled={!filtered.length} className="w-full h-10 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-xs font-semibold text-slate-700 flex items-center gap-2 px-3 disabled:opacity-40"><ArrowDownToLine size={15}/> Export classified data</button><button onClick={onOpenSentenceAnalysis} className="w-full h-10 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-xs font-semibold text-slate-700 flex items-center gap-2 px-3"><List size={15}/> Open sentence analysis</button><button onClick={onAnalyzeAll} disabled={!records.length} className="w-full h-10 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-xs font-semibold text-slate-700 flex items-center gap-2 px-3 disabled:opacity-40"><Activity size={15}/> Re-run analysis</button></div><div className="mt-5 pt-4 border-t border-slate-100"><p className="text-[11px] text-slate-500 leading-relaxed">Category totals use available human-adjudicated labels first, then rule-based or model predictions. They are not benchmark evaluation scores.</p></div></aside>
+        <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5"><div className="flex items-center gap-2"><Sparkles size={18} className="text-blue-600"/><h2 className="font-bold text-slate-900">Actions</h2></div><div className="space-y-2 mt-5"><button onClick={exportData} disabled={!filtered.length} className="w-full h-10 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-xs font-semibold text-slate-700 flex items-center gap-2 px-3 disabled:opacity-40"><ArrowDownToLine size={15}/> Export classified data</button><button onClick={onOpenSentenceAnalysis} className="w-full h-10 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-xs font-semibold text-slate-700 flex items-center gap-2 px-3"><List size={15}/> Open sentence analysis</button><button onClick={onAnalyzeAll} disabled={!records.length} className="w-full h-10 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-xs font-semibold text-slate-700 flex items-center gap-2 px-3 disabled:opacity-40"><Activity size={15}/> Re-run analysis</button></div><div className="mt-5 pt-4 border-t border-slate-100"><p className="text-[11px] text-slate-500 leading-relaxed">This dashboard displays one label source at a time. Human-adjudicated labels are kept separate from heuristic and model predictions. Prediction distributions are descriptive, not benchmark evaluation scores.</p></div></aside>
       </section>
 
       {showDetails && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={()=>setShowDetails(null)}><div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6" onClick={e=>e.stopPropagation()}><div className="flex items-start justify-between gap-4"><div><p className="text-xs text-blue-600 font-semibold">FEEDBACK RECORD</p><h3 className="text-lg font-bold text-slate-900 mt-1">Record details</h3></div><button onClick={()=>setShowDetails(null)} className="p-2 rounded-lg hover:bg-slate-100"><X size={18}/></button></div><p className="text-sm text-slate-700 leading-relaxed mt-5">{showDetails.text}</p><div className="grid grid-cols-2 gap-3 mt-5"><div className="bg-slate-50 rounded-xl p-3"><p className="text-[10px] text-slate-400 uppercase">Predicted category</p><p className="text-sm font-semibold text-slate-800 mt-1">{CATEGORIES.find(c=>c.key===getCategory(showDetails))?.label || 'Not classified'}</p></div><div className="bg-slate-50 rounded-xl p-3"><p className="text-[10px] text-slate-400 uppercase">Adjudicated label</p><p className="text-sm font-semibold text-slate-800 mt-1">{showDetails.humanAnnotations?.adjudicated || 'Not adjudicated'}</p></div></div><p className="text-xs text-slate-500 mt-4">Record ID: {showDetails.id}</p></div></div>}
