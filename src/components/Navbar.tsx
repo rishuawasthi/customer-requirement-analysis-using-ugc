@@ -1,11 +1,9 @@
 import React from 'react';
 import {
-  FileSearch,
-  BookOpen,
-  FileText
+  Activity, Bell, BookOpen, Database, FileText, LayoutDashboard, ListChecks, Settings, Sparkles
 } from 'lucide-react';
 
-export type ActiveTab = 'implementation' | 'research' | 'documentation';
+export type ActiveTab = 'dashboard' | 'implementation' | 'annotation' | 'research' | 'documentation';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -18,107 +16,38 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  activeTab,
-  setActiveTab,
-  recordCount,
-  classifiedCount,
-  annotatedCount = 0,
-  sourceName = '',
-  onQuickSwitchDataset
+  activeTab, setActiveTab, recordCount, classifiedCount, annotatedCount = 0,
+  sourceName = '', onQuickSwitchDataset
 }) => {
-  const tabs = [
-    { id: 'implementation' as ActiveTab, label: 'Implementation', icon: FileSearch },
-    { id: 'research' as ActiveTab, label: 'Research', icon: BookOpen, badge: annotatedCount > 0 ? `${annotatedCount} annotated` : undefined },
-    { id: 'documentation' as ActiveTab, label: 'Documentation', icon: FileText }
+  const links = [
+    { id: 'dashboard' as ActiveTab, label: 'Feedback Analysis', icon: LayoutDashboard },
+    { id: 'implementation' as ActiveTab, label: 'Sentence Analysis', icon: ListChecks },
+    { id: 'annotation' as ActiveTab, label: 'Dataset & Annotation', icon: Database },
+    { id: 'research' as ActiveTab, label: 'Evaluation & Benchmark', icon: Activity },
+    { id: 'documentation' as ActiveTab, label: 'Insights & Reports', icon: FileText }
   ];
+  const isFull = sourceName.toLowerCase().includes('full') || recordCount > 500;
 
-  const isFullActive = sourceName.includes('full') || recordCount > 500;
-
-  return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
-          {/* Project Title and Academic Identifier */}
-          <div className="flex items-center space-x-3">
-            <div className="w-7 h-7 rounded bg-slate-900 text-white flex items-center justify-center font-semibold text-xs tracking-wider">
-              UGC
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-slate-900 tracking-tight leading-tight">
-                Customer Requirement Analysis
-              </div>
-              <div className="text-[11px] text-slate-500 hidden sm:block">
-                SemEval-2015 Benchmark • Academic Research System
-              </div>
-            </div>
-          </div>
-
-          {/* Global Dataset Toolbar & Navigation */}
-          <div className="flex items-center space-x-3">
-            {onQuickSwitchDataset && (
-              <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-xs">
-                <button
-                  type="button"
-                  onClick={() => onQuickSwitchDataset('curated')}
-                  className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
-                    !isFullActive
-                      ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="Switch to Curated 45-Record Presentation Dataset"
-                >
-                  Curated (45)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onQuickSwitchDataset('full')}
-                  className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
-                    isFullActive
-                      ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="Switch to Full 4,161-Row SemEval-2015 Benchmark"
-                >
-                  Full (4,161)
-                </button>
-              </div>
-            )}
-
-            <div className="hidden md:flex items-center space-x-2 text-xs text-slate-500 pl-2 border-l border-slate-200 font-mono text-[11px]">
-              <span>{recordCount.toLocaleString()} rows</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 3 Main Target Tabs */}
-        <nav className="flex space-x-2 border-t border-slate-100 py-1 -mb-px">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-3.5 py-1.5 text-xs font-medium rounded transition-colors ${
-                  isActive
-                    ? 'bg-slate-900 text-white font-semibold shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
-                {tab.badge && (
-                  <span className={`px-1.5 py-0.2 text-[10px] rounded font-mono ${
-                    isActive ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+  return <>
+    <header className="fixed top-0 inset-x-0 z-40 h-[70px] bg-white/95 backdrop-blur border-b border-slate-200 flex items-center justify-between px-5 sm:px-8">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-200"><LayersBrand/></div>
+        <div className="min-w-0"><div className="text-xl font-extrabold tracking-tight text-slate-950">CRAU</div><div className="text-[11px] text-slate-500 truncate hidden sm:block">Customer Requirement Analysis Using User Generated Content</div></div>
+      </div>
+      <div className="flex items-center gap-3 sm:gap-5">
+        {onQuickSwitchDataset && <div className="hidden md:flex items-center rounded-lg bg-slate-100 p-1 gap-1"><button onClick={()=>onQuickSwitchDataset('curated')} className={`px-3 py-1.5 rounded-md text-[11px] font-semibold ${!isFull?'bg-white text-blue-700 shadow-sm':'text-slate-500'}`}>Curated 45</button><button onClick={()=>onQuickSwitchDataset('full')} className={`px-3 py-1.5 rounded-md text-[11px] font-semibold ${isFull?'bg-white text-blue-700 shadow-sm':'text-slate-500'}`}>Full 4,161</button></div>}
+        <button className="hidden sm:grid w-9 h-9 place-items-center rounded-full hover:bg-slate-100 text-slate-600" aria-label="Notifications"><Bell size={19}/></button>
+        <button className="hidden sm:grid w-9 h-9 place-items-center rounded-full hover:bg-slate-100 text-slate-600" aria-label="Settings"><Settings size={19}/></button>
+        <div className="flex items-center gap-2"><div className="w-9 h-9 rounded-full bg-blue-600 text-white grid place-items-center font-semibold">R</div><span className="hidden sm:block text-xs font-semibold text-slate-800">Research Workspace</span></div>
       </div>
     </header>
-  );
+    <aside className="fixed z-30 top-[70px] bottom-0 left-0 hidden lg:flex w-[248px] flex-col bg-white border-r border-slate-200 px-3 py-6">
+      <p className="px-3 mb-3 text-[10px] uppercase tracking-[.16em] font-bold text-slate-400">Workspace</p>
+      <nav className="space-y-1">{links.map(link=>{const Icon=link.icon;const active=activeTab===link.id;return <button key={link.id} onClick={()=>setActiveTab(link.id)} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-[13px] font-semibold transition ${active?'bg-blue-50 text-blue-700 shadow-sm':'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}><Icon size={18} className={active?'text-blue-600':'text-slate-400'}/>{link.label}</button>})}</nav>
+      <div className="mt-auto rounded-xl bg-slate-50 border border-slate-100 p-4"><div className="flex items-center gap-2 text-slate-700"><Sparkles size={16} className="text-blue-600"/><span className="text-xs font-bold">Workspace status</span></div><div className="mt-3 flex justify-between text-[11px] text-slate-500"><span>Records</span><strong className="text-slate-700">{recordCount.toLocaleString()}</strong></div><div className="mt-1 flex justify-between text-[11px] text-slate-500"><span>Classified</span><strong className="text-slate-700">{classifiedCount.toLocaleString()}</strong></div><div className="mt-1 flex justify-between text-[11px] text-slate-500"><span>Dual annotated</span><strong className="text-slate-700">{annotatedCount.toLocaleString()}</strong></div></div>
+    </aside>
+    <div className="lg:hidden fixed z-30 bottom-0 inset-x-0 bg-white border-t border-slate-200 px-1 py-2 flex justify-around">{links.slice(0,4).map(link=>{const Icon=link.icon;return <button key={link.id} onClick={()=>setActiveTab(link.id)} className={`flex flex-col items-center gap-1 px-2 py-1 text-[9px] font-semibold ${activeTab===link.id?'text-blue-600':'text-slate-500'}`}><Icon size={18}/>{link.label.split(' ')[0]}</button>})}</div>
+  </>;
 };
+
+const LayersBrand = () => <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>;
