@@ -1,4 +1,5 @@
 import assert from 'assert';
+import fs from 'fs';
 import http from 'http';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -73,10 +74,36 @@ async function runTests() {
       }
     }
   ];
-  const syncRes = await syncDatasetWithMl(sampleRecords);
-  assert(syncRes.success, 'Sync must succeed');
-  assert.strictEqual(syncRes.saved_records, 1, 'Saved records count must match');
-  console.log('✔ Check 6: syncDatasetWithMl() synchronizes records to ML backend and updates split statistics');
+  const serverRoot = path.dirname(fileURLToPath(import.meta.url));
+  const filesToPreserve = [
+    path.join(serverRoot, 'data', 'adjudicated_dataset.json'),
+    path.join(serverRoot, 'ml', 'data', 'train_manifest.json'),
+    path.join(serverRoot, 'ml', 'data', 'val_manifest.json'),
+    path.join(serverRoot, 'ml', 'data', 'test_manifest.json')
+  ];
+  const backups = filesToPreserve.map(filePath => ({
+    filePath,
+    existed: fs.existsSync(filePath),
+    content: fs.existsSync(filePath) ? fs.readFileSync(filePath) : null
+  }));
+
+  try {
+    const syncRes = await syncDatasetWithMl(sampleRecords);
+    assert(syncRes.success, 'Sync must succeed');
+    assert.strictEqual(syncRes.saved_records, 1, 'Saved records count must match');
+  } finally {
+    // Integration checks must never leave the one-record fixture in the
+    // user's real adjudicated dataset or overwrite existing split manifests.
+    for (const backup of backups) {
+      if (backup.existed) {
+        fs.mkdirSync(path.dirname(backup.filePath), { recursive: true });
+        fs.writeFileSync(backup.filePath, backup.content);
+      } else if (fs.existsSync(backup.filePath)) {
+        fs.unlinkSync(backup.filePath);
+      }
+    }
+  }
+  console.log('✔ Check 6: syncDatasetWithMl() synchronizes records and restores pre-test dataset files');
 
   console.log('\nAll 6 Express ML Bridge Integration Tests Passed Successfully!\n');
 }
