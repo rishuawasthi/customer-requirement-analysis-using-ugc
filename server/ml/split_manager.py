@@ -18,6 +18,7 @@ RANDOM_SEED = 42
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 DEFAULT_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'adjudicated_dataset.json')
 EXPLORATORY_DATA_PATH = os.path.join(DATA_DIR, 'ai_exploratory_dataset.json')
+EXPLORATORY_MANIFEST_DIR = os.path.join(DATA_DIR, 'exploratory')
 
 TRAIN_MANIFEST_PATH = os.path.join(DATA_DIR, 'train_manifest.json')
 VAL_MANIFEST_PATH = os.path.join(DATA_DIR, 'val_manifest.json')
@@ -233,9 +234,11 @@ def save_adjudicated_data(records: List[Dict[str, Any]], path: Optional[str] = N
     return target_path
 
 
-def load_manifest(split: str, target_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+def load_manifest(split: str, target_dir: Optional[str] = None, mode: str = 'gold') -> List[Dict[str, Any]]:
     """Loads records for a specific partition manifest ('train', 'val', or 'test')."""
-    dir_path = target_dir or DATA_DIR
+    if mode not in ('gold', 'exploratory'):
+        raise ValueError("mode must be 'gold' or 'exploratory'")
+    dir_path = target_dir or (DATA_DIR if mode == 'gold' else EXPLORATORY_MANIFEST_DIR)
     manifest_file = os.path.join(dir_path, f"{split}_manifest.json")
     if os.path.exists(manifest_file):
         try:
