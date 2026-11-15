@@ -93,7 +93,7 @@ class RobertaClassifierArm:
 
     def get_status(self, records: Optional[List[Dict[str, Any]]] = None, mode: str = 'gold') -> Dict[str, Any]:
         """Reports RoBERTa model readiness, evaluation status, and training requirements."""
-        stats = get_dataset_statistics(records or load_adjudicated_data(), mode=mode)
+        stats = get_dataset_statistics(records if records is not None else load_adjudicated_data(), mode=mode)
         eval_data = None
         if os.path.exists(EVAL_PATH):
             try:
@@ -318,14 +318,15 @@ class RobertaClassifierArm:
 
     def classify(self, text: str) -> Dict[str, Any]:
         """Runs sequence classification inference with fine-tuned RoBERTa-base."""
-        if not self.is_loaded or self.model is None or self.tokenizer is None:
+        if (not self.is_loaded or self.model is None or self.tokenizer is None
+                or not self.metadata or self.metadata.get('mode') != 'gold'):
             return {
                 'requirement_category': 'NON_ACTIONABLE',
                 'confidence': 0.0,
                 'model': 'RoBERTa-base (4-way Sequence Classification)',
                 'method': 'Fine-Tuned RoBERTa (Transformer)',
                 'status': 'awaiting_data',
-                'errorMessage': 'RoBERTa-base model is not trained yet.'
+                'errorMessage': 'RoBERTa-base gold-mode model is not trained. Exploratory-only artifacts are not used for formal classification.'
             }
 
         clean_text = (text or '').strip()
