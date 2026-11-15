@@ -89,7 +89,8 @@ app.get('/api/ml/status', async (req, res) => {
  */
 app.get('/api/ml/splits', async (req, res) => {
   try {
-    const result = await generateSplits();
+    const mode = req.query.mode === 'exploratory' ? 'exploratory' : 'gold';
+    const result = await generateSplits(null, mode);
     return res.json({ success: true, ...result });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -151,16 +152,33 @@ app.post('/api/annotations/sync', async (req, res) => {
 app.post('/api/ml/exploratory/generate', async (req, res) => {
   try {
     const { records = [] } = req.body || {};
-    const exploratoryRecords = records.map(r => ({
-      ...r,
-      exploratoryLabel: r.predictedCategory || (r.humanAnnotations && r.humanAnnotations.adjudicated) || 'NON_ACTIONABLE'
-    }));
+    if (!Array.isArray(records)) {
+      return res.status(400).json({ success: false, error: 'Expected records array' });
+    }
+
+    // Exploratory labels must be explicit weak predictions; never silently
+    // convert missing labels into NON_ACTIONABLE or reuse gold labels.
+    const exploratoryRecords = records
+      .filter(r => ['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE']
+        .includes(r.exploratoryLabel || r.predictedCategory))
+      .map(r => ({
+        ...r,
+        exploratoryLabel: r.exploratoryLabel || r.predictedCategory
+      }));
+
+    if (exploratoryRecords.length === 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'NO_EXPLORATORY_LABELS',
+        error: 'No valid weak labels found. Run the rule-based classifier first, then retry.'
+      });
+    }
 
     const exploratoryPath = path.join(__dirname, 'ml', 'data', 'ai_exploratory_dataset.json');
     fs.mkdirSync(path.dirname(exploratoryPath), { recursive: true });
     fs.writeFileSync(exploratoryPath, JSON.stringify(exploratoryRecords, null, 2), 'utf-8');
 
-    const splitRes = await generateSplits(exploratoryRecords);
+    const splitRes = await generateSplits(exploratoryRecords, 'exploratory');
 
     return res.json({
       success: true,
