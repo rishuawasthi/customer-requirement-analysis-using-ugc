@@ -102,12 +102,18 @@ class RobertaClassifierArm:
             except Exception:
                 eval_data = None
 
+        # Do not display exploratory evaluation results in the formal gold-mode view.
+        if eval_data and eval_data.get('mode') != mode:
+            eval_data = None
+
+        metadata_matches_mode = bool(self.metadata and self.metadata.get('mode') == mode)
+
         return {
             'model_name': 'RoBERTa-base (4-way Sequence Classification)',
-            'status': 'trained' if self.is_loaded else 'awaiting_data',
-            'is_trained': self.is_loaded,
-            'artifact_path': ROBERTA_ARTIFACT_DIR if self.is_loaded else None,
-            'training_metadata': self.metadata if self.is_loaded else None,
+            'status': 'trained' if self.is_loaded and metadata_matches_mode else 'awaiting_data',
+            'is_trained': self.is_loaded and metadata_matches_mode,
+            'artifact_path': ROBERTA_ARTIFACT_DIR if self.is_loaded and metadata_matches_mode else None,
+            'training_metadata': self.metadata if metadata_matches_mode else None,
             'hardware': self.hardware,
             'dataset_status': stats,
             'evaluation': eval_data
