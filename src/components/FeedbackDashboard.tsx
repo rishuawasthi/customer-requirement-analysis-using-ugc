@@ -85,6 +85,7 @@ export const FeedbackDashboard: React.FC<DashboardProps> = ({
     acc.end = end;
     return acc;
   }, { end: 0, parts: [] as string[] });
+  if (records.length > classified) donut.parts.push(`#cbd5e1 ${donut.end}% 100%`);
 
   const handleUpload = async (file?: File) => {
     if (!file) return;
@@ -157,7 +158,7 @@ export const FeedbackDashboard: React.FC<DashboardProps> = ({
           <p className="mt-2 text-[10px] text-slate-500">Showing <strong>{SOURCE_LABELS[labelSource]}</strong>. Label sources are never combined.</p>
           {classified ? <div className="flex flex-col sm:flex-row items-center gap-5 mt-5">
             <div className="relative w-40 h-40 rounded-full shrink-0" style={{background: `conic-gradient(${donut.parts.join(', ')})`}}><div className="absolute inset-[25px] rounded-full bg-white flex flex-col items-center justify-center"><strong className="text-xl text-slate-900">{classified.toLocaleString()}</strong><span className="text-[10px] text-slate-500">Classified</span></div></div>
-            <div className="space-y-3 w-full">{CATEGORIES.map(c=><div key={c.key} className="flex items-center justify-between gap-2 text-xs"><span className="flex items-center gap-2 text-slate-600"><i className="w-2.5 h-2.5 rounded-sm" style={{background:c.color}}/>{c.label}</span><strong className="text-slate-800 tabular-nums">{counts[c.key].toLocaleString()} <span className="text-slate-400 font-normal">({(pct(counts[c.key])).toFixed(1)}%)</span></strong></div>)}</div>
+            <div className="space-y-3 w-full">{CATEGORIES.map(c=><div key={c.key} className="flex items-center justify-between gap-2 text-xs"><span className="flex items-center gap-2 text-slate-600"><i className="w-2.5 h-2.5 rounded-sm" style={{background:c.color}}/>{c.label}</span><strong className="text-slate-800 tabular-nums">{counts[c.key].toLocaleString()} <span className="text-slate-400 font-normal">({(pct(counts[c.key])).toFixed(1)}%)</span></strong></div>)}<div className="flex items-center justify-between gap-2 text-xs"><span className="flex items-center gap-2 text-slate-600"><i className="w-2.5 h-2.5 rounded-sm bg-slate-300"/>Unclassified</span><strong className="text-slate-800 tabular-nums">{(records.length-classified).toLocaleString()} <span className="text-slate-400 font-normal">({(records.length ? ((records.length-classified)/records.length*100) : 0).toFixed(1)}%)</span></strong></div></div>
           </div> : <div className="h-44 flex flex-col items-center justify-center text-center text-slate-400"><Activity size={28}/><p className="text-sm font-medium mt-2">No classification data yet</p><p className="text-xs mt-1">Run analysis to populate this chart.</p></div>}
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
