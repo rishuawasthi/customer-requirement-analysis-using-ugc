@@ -14,7 +14,11 @@ from .split_manager import (
     load_adjudicated_data,
     save_adjudicated_data,
     generate_split_manifests,
-    load_manifest
+    load_manifest,
+    DEFAULT_DATA_PATH,
+    EXPLORATORY_DATA_PATH,
+    EXPLORATORY_MANIFEST_DIR,
+    DATA_DIR
 )
 from .svm_arm import SvmClassifierArm
 from .roberta_arm import RobertaClassifierArm
@@ -46,8 +50,10 @@ def main():
     svm_arm = SvmClassifierArm()
     roberta_arm = RobertaClassifierArm()
 
+    dataset_path = args.data_file or (EXPLORATORY_DATA_PATH if args.mode == 'exploratory' else DEFAULT_DATA_PATH)
+
     if args.action == "status":
-        records = load_adjudicated_data(args.data_file or None)
+        records = load_adjudicated_data(dataset_path)
         stats_gold = get_dataset_statistics(records, mode='gold')
         stats_exploratory = get_dataset_statistics(records, mode='exploratory')
         output = {
@@ -63,8 +69,9 @@ def main():
         print(json.dumps(output, indent=2))
 
     elif args.action == "split":
-        records = load_adjudicated_data(args.data_file or None)
-        result = generate_split_manifests(records)
+        records = load_adjudicated_data(dataset_path)
+        manifest_dir = DATA_DIR if args.mode == 'gold' else EXPLORATORY_MANIFEST_DIR
+        result = generate_split_manifests(records, output_dir=manifest_dir)
         print(json.dumps(result, indent=2))
 
     elif args.action == "sync":
@@ -75,7 +82,8 @@ def main():
             with open(args.data_file, 'r', encoding='utf-8') as f:
                 records = json.load(f)
 
-        save_path = save_adjudicated_data(records)
+        save_target = EXPLORATORY_DATA_PATH if args.mode == 'exploratory' else DEFAULT_DATA_PATH
+        save_path = save_adjudicated_data(records, path=save_target)
         stats = get_dataset_statistics(records, mode=args.mode)
         split_res = generate_split_manifests(records)
         output = {
@@ -105,7 +113,7 @@ def main():
         print(json.dumps(output, indent=2))
 
     elif args.action == "train-svm":
-        records = load_adjudicated_data(args.data_file or None)
+        records = load_adjudicated_data(dataset_path)
         res = svm_arm.train(records, mode=args.mode)
         print(json.dumps(res, indent=2))
 
@@ -115,7 +123,7 @@ def main():
         print(json.dumps(res, indent=2))
 
     elif args.action == "evaluate":
-        test_records = load_manifest("test")
+        test_records = load_manifest("test", mode=args.mode)
         output = {
             "mode": args.mode,
             "test_sample_count": len(test_records),
