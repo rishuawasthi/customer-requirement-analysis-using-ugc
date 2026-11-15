@@ -224,27 +224,62 @@ export const FEW_SHOT_EXEMPLARS = {
  * k in {0, 2, 4, 8} (where k represents total exemplars or k per class)
  * In our benchmark: k is in {0, 2, 4, 8} exemplars total / balanced across categories.
  */
+/**
+ * Builds the full context prompt for Gemini given sentence and few-shot k parameter
+ * Supported benchmark arms: k in {0, 2, 4, 8}
+ * - k=0: Zero-shot classification (no exemplars)
+ * - k=2: Two contrasting exemplars (1 EXPLICIT_NEED, 1 PAIN_POINT)
+ * - k=4: Four exemplars (1 balanced exemplar across all 4 categories)
+ * - k=8: Eight exemplars (2 balanced exemplars across all 4 categories)
+ */
 export function buildPromptWithExemplars(text, k = 0) {
   let promptText = `Analyze the following customer feedback sentence:\n\n"${text.trim()}"\n\n`;
 
-  if (k > 0) {
-    promptText += `Here are illustrative reference examples from our training benchmark:\n\n`;
-    const categories = ['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'];
-    const perCategory = Math.max(1, Math.floor(k / 4));
-    
+  // Normalize numeric k; invalid or non-positive values safely default to k=0
+  const numericK = Number(k);
+  if (isNaN(numericK) || numericK <= 0) {
+    promptText += `Classify the sentence under the four-class taxonomy and sentiment dimensions.\n`;
+    return promptText;
+  }
+
+  // Resolve to supported benchmark arms {2, 4, 8}; values between are clamped safely
+  let benchmarkK = 0;
+  if (numericK >= 8) {
+    benchmarkK = 8;
+  } else if (numericK >= 4) {
+    benchmarkK = 4;
+  } else if (numericK >= 2) {
+    benchmarkK = 2;
+  } else {
+    // 0 < k < 2 defaults safely to zero-shot (k=0)
+    promptText += `Classify the sentence under the four-class taxonomy and sentiment dimensions.\n`;
+    return promptText;
+  }
+
+  promptText += `Here are illustrative reference examples from our training benchmark:\n\n`;
+  const categories = ['EXPLICIT_NEED', 'IMPLICIT_NEED', 'PAIN_POINT', 'NON_ACTIONABLE'];
+  const selectedExamples = [];
+
+  if (benchmarkK === 2) {
+    // Exactly 2 exemplars: 1 EXPLICIT_NEED and 1 PAIN_POINT for sharp boundary definition
+    selectedExamples.push({ cat: 'EXPLICIT_NEED', ex: FEW_SHOT_EXEMPLARS.EXPLICIT_NEED[0], num: 1 });
+    selectedExamples.push({ cat: 'PAIN_POINT', ex: FEW_SHOT_EXEMPLARS.PAIN_POINT[0], num: 1 });
+  } else {
+    const perCategory = benchmarkK === 8 ? 2 : 1;
     categories.forEach(cat => {
       const examples = FEW_SHOT_EXEMPLARS[cat].slice(0, perCategory);
       examples.forEach((ex, idx) => {
-        promptText += `[Example ${cat} #${idx + 1}]\n`;
-        promptText += `Input: "${ex.text}"\n`;
-        promptText += `Classification: ${JSON.stringify(ex.output)}\n\n`;
+        selectedExamples.push({ cat, ex, num: idx + 1 });
       });
     });
-
-    promptText += `Now classify the target sentence accurately following the exact same schema.\n`;
-  } else {
-    promptText += `Classify the sentence under the four-class taxonomy and sentiment dimensions.\n`;
   }
 
+  selectedExamples.forEach(({ cat, ex, num }) => {
+    promptText += `[Example ${cat} #${num}]\n`;
+    promptText += `Input: "${ex.text}"\n`;
+    promptText += `Classification: ${JSON.stringify(ex.output)}\n\n`;
+  });
+
+  promptText += `Now classify the target sentence accurately following the exact same schema.\n`;
   return promptText;
 }
