@@ -88,11 +88,14 @@ def sync_dataset(req: SyncDatasetRequest):
     records = req.records
     save_path = save_adjudicated_data(records, path=_dataset_path(mode))
     stats = get_dataset_statistics(records, mode=mode)
+    manifest_dir = DATA_DIR if mode == 'gold' else EXPLORATORY_MANIFEST_DIR
+    split_result = generate_split_manifests(records, output_dir=manifest_dir)
     return {
         "success": True,
         "saved_records": len(records),
         "path": save_path,
-        "statistics": stats
+        "statistics": stats,
+        "split_manifests": split_result
     }
 
 
