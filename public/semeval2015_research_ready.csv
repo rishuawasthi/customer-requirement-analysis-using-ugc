@@ -1,0 +1,46 @@
+id,text,aspect_category,aspect_term,polarity
+REST_001,"The food was fresh and delicious, but please offer larger portion sizes.",RESTAURANT#PORTION_SIZE,portion size,negative
+REST_002,"The waiter was exceptionally attentive and polite throughout our dinner.",SERVICE#GENERAL,waiter,positive
+REST_003,"I wish they had gluten-free and allergen options clearly marked on the menu.",RESTAURANT#MISCELLANEOUS,menu,negative
+REST_004,"The air conditioning was completely broken and the room was suffocatingly hot.",AMBIENCE#GENERAL,air conditioning,negative
+REST_005,"Great ambiance and comfortable seating for a relaxing evening.",AMBIENCE#GENERAL,seating,positive
+REST_006,"Could you please add online table reservation to avoid the 45-minute waiting queue?",SERVICE#GENERAL,table reservation,negative
+REST_007,"The bill had an erroneous surcharge and the staff refused to correct it.",SERVICE#GENERAL,bill,negative
+REST_008,"It would be nice if the wine list included pairing recommendations for each entree.",DRINKS#QUALITY,wine list,neutral
+REST_009,"The pasta was cold and soggy when it arrived at our table.",FOOD#QUALITY,pasta,negative
+REST_010,"Please consider adding more vegan and vegetarian appetizers to the dinner menu.",FOOD#QUALITY,appetizers,neutral
+REST_011,"Loved the authentic Italian dessert, best tiramisu in the city!",FOOD#QUALITY,tiramisu,positive
+REST_012,"It is very difficult to flag down a server during peak dinner hours.",SERVICE#GENERAL,server,negative
+REST_013,"The kitchen took over 50 minutes to prepare a simple Caesar salad.",SERVICE#GENERAL,kitchen,negative
+REST_014,"We need an accessible wheelchair ramp at the front entrance.",AMBIENCE#GENERAL,entrance,negative
+REST_015,"Pleasant staff and quiet environment.",SERVICE#GENERAL,staff,positive
+REST_016,"You should provide free tap water without customers having to repeatedly ask for it.",SERVICE#GENERAL,water,negative
+REST_017,"Too noisy to have a normal conversation without shouting.",AMBIENCE#GENERAL,noise,negative
+REST_018,"The fish tasted foul and gave two of our party members food poisoning.",FOOD#QUALITY,fish,negative
+REST_019,"I would prefer if the music volume were kept lower during dinner hours.",AMBIENCE#GENERAL,music,neutral
+REST_020,"Average dining experience, nothing special.",RESTAURANT#GENERAL,dining experience,neutral
+LAP_001,"The battery life is around 3 hours; I wish it lasted at least 7 hours for travel.",BATTERY#OPERATION_PERFORMANCE,battery life,negative
+LAP_002,"Please add an option in the BIOS to disable the keyboard backlighting timeout.",KEYBOARD#OPERATION_PERFORMANCE,backlighting timeout,neutral
+LAP_003,"The touchpad is erratic and jumps uncontrollably when typing long documents.",LAPTOP#OPERATION_PERFORMANCE,touchpad,negative
+LAP_004,"Solid aluminum chassis build quality and very lightweight to carry in a backpack.",LAPTOP#DESIGN_FEATURES,chassis,positive
+LAP_005,"The screen is very difficult to view under direct sunlight due to glossy reflections.",DISPLAY#QUALITY,screen,negative
+LAP_006,"Audio speakers are terribly quiet and crackle heavily above 70 percent volume.",AUDIO#QUALITY,speakers,negative
+LAP_007,"You should provide updated graphics drivers for Windows on your official download page.",SUPPORT#QUALITY,drivers,negative
+LAP_008,"The machine froze completely three times today and required a hard reboot.",LAPTOP#OPERATION_PERFORMANCE,machine,negative
+LAP_009,"Beautiful high resolution 4K display with vivid and accurate colors.",DISPLAY#QUALITY,display,positive
+LAP_010,"It would be much more convenient if there was an integrated full-sized HDMI port.",LAPTOP#CONNECTIVITY,HDMI port,neutral
+LAP_011,"The cooling fan makes an unbearable high-pitched whining noise under light loads.",LAPTOP#OPERATION_PERFORMANCE,cooling fan,negative
+LAP_012,"I want the manufacturer to offer a 32GB RAM upgrade option for developers.",MEMORY#DESIGN_FEATURES,RAM upgrade,neutral
+LAP_013,"The power brick connector is fragile and snapped after only two months of use.",POWER_SUPPLY#QUALITY,connector,negative
+LAP_014,"Other competing laptops in this price bracket offer fingerprint sensors for fast login.",SECURITY#DESIGN_FEATURES,fingerprint sensor,negative
+LAP_015,"Decent laptop for students doing basic word processing and web browsing.",LAPTOP#GENERAL,laptop,positive
+LAP_016,"Could really use a physical privacy shutter switch for the webcam.",CAMERA#DESIGN_FEATURES,webcam,neutral
+LAP_017,"The keyboard keys feel squishy and there is noticeable flex in the center.",KEYBOARD#QUALITY,keyboard keys,negative
+LAP_018,"Please release firmware that allows manual fan curve customization.",SOFTWARE#OPERATION_PERFORMANCE,firmware,neutral
+LAP_019,"The webcam quality is grainy and unusable in low light conference calls.",CAMERA#QUALITY,webcam,negative
+LAP_020,"Fast shipping and arrived in pristine packaging.",SUPPORT#GENERAL,shipping,positive
+LAP_021,"I wish the trackpad had dedicated physical left and right click buttons.",LAPTOP#DESIGN_FEATURES,trackpad,neutral
+LAP_022,"The device overheats drastically and burns my lap after 20 minutes of video playback.",LAPTOP#OPERATION_PERFORMANCE,heat,negative
+LAP_023,"We urgently require Linux kernel compatibility for this hardware revision.",SOFTWARE#OPERATION_PERFORMANCE,Linux compatibility,neutral
+LAP_024,"Just an okay laptop for the price, neither great nor terrible.",LAPTOP#GENERAL,laptop,neutral
+LAP_025,"Kindly make replacement batteries available for purchase on your web store.",POWER_SUPPLY#GENERAL,batteries,neutral

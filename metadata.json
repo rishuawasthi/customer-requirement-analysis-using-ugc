@@ -1,0 +1,6 @@
+{
+  "name": "Customer Requirement Analysis Using User Generated Content",
+  "description": "An academic mini-project prototype for analyzing and categorizing user-generated customer feedback into explicit needs, implicit needs, pain points, and non-actionable statements.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
