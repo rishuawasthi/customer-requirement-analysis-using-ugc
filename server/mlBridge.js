@@ -97,8 +97,15 @@ export async function getMlStatus(mode = 'gold') {
   return await callMlEndpoint(`/ml/status?mode=${mode}`, 'GET', null, 'status', ['--mode', mode]);
 }
 
+function datasetPathForMode(mode = 'gold') {
+  if (mode !== 'gold' && mode !== 'exploratory') throw new Error("mode must be 'gold' or 'exploratory'");
+  return mode === 'exploratory'
+    ? path.join(__dirname, 'ml', 'data', 'ai_exploratory_dataset.json')
+    : path.join(__dirname, 'data', 'adjudicated_dataset.json');
+}
+
 export async function syncDatasetWithMl(records, mode = 'gold') {
-  const dataFilePath = path.join(__dirname, 'data', 'adjudicated_dataset.json');
+  const dataFilePath = datasetPathForMode(mode);
   fs.mkdirSync(path.dirname(dataFilePath), { recursive: true });
   fs.writeFileSync(dataFilePath, JSON.stringify(records, null, 2), 'utf-8');
 
@@ -111,13 +118,13 @@ export async function syncDatasetWithMl(records, mode = 'gold') {
   );
 }
 
-export async function generateSplits(records = null) {
-  const dataFilePath = path.join(__dirname, 'data', 'adjudicated_dataset.json');
+export async function generateSplits(records = null, mode = 'gold') {
+  const dataFilePath = datasetPathForMode(mode);
   if (records) {
     fs.mkdirSync(path.dirname(dataFilePath), { recursive: true });
     fs.writeFileSync(dataFilePath, JSON.stringify(records, null, 2), 'utf-8');
   }
-  return await callMlEndpoint('/ml/splits', 'POST', { records }, 'split', ['--data-file', dataFilePath]);
+  return await callMlEndpoint(`/ml/splits?mode=${mode}`, 'POST', { records, mode }, 'split', ['--data-file', dataFilePath, '--mode', mode]);
 }
 
 export async function classifyWithSvm(text) {
