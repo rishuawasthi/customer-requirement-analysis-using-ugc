@@ -211,13 +211,25 @@ class TestMlPipeline(unittest.TestCase):
         self.assertEqual(result['split_counts']['test'], 0)
 
     def test_svm_gold_and_exploratory_artifacts_are_isolated(self):
+        # Build deterministic, sufficiently populated partitions instead of
+        # relying on a small random-looking sample of hash assignments.
         records = []
         for category in TAXONOMY_CATEGORIES:
-            for i in range(12):
+            counts = {'train': 0, 'val': 0, 'test': 0}
+            candidate = 0
+            while any(count < (8 if split == 'train' else 2) for split, count in counts.items()):
+                review_id = f'SVM_MODE_{category}_{candidate}'
+                candidate += 1
+                assigned_split = assign_review_to_split(review_id)
+                required = 8 if assigned_split == 'train' else 2
+                if counts[assigned_split] >= required:
+                    continue
+                index = counts[assigned_split]
+                counts[assigned_split] += 1
                 records.append({
-                    'id': f'{category}-{i}',
-                    'review_id': f'SVM_MODE_{category}_{i}',
-                    'text': f'{category} example feedback with distinct token {i}.',
+                    'id': f'{category}-{assigned_split}-{index}',
+                    'review_id': review_id,
+                    'text': f'{category} example feedback from {assigned_split} partition {index}.',
                     'humanAnnotations': {'adjudicated': category},
                     'exploratoryLabel': category
                 })
